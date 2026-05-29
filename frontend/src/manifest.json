@@ -1,0 +1,20 @@
+{
+  "name": "酷礼工坊",
+  "appid": "__UNI__TEMP__",
+  "description": "精选礼品在线选购",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": true,
+      "es6": true,
+      "postcss": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "permission": {}
+  }
+}

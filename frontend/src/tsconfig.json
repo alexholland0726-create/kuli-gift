@@ -1,0 +1,15 @@
+{
+  "extends": "@dcloudio/types/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "strict": false,
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "types": ["@dcloudio/types"]
+  },
+  "include": ["**/*.ts", "**/*.vue"]
+}
