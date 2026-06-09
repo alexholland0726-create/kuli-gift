@@ -3,5 +3,10 @@ dist/
 .next/
 uploads/
 .env
+*.pem
+*.key
+*密钥*.txt
+*secret*.txt
+*private*.txt
 *.log
 .DS_Store
