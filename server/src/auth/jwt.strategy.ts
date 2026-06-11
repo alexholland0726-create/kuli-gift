@@ -6,6 +6,14 @@ import { UserService } from '../user/user.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private static getJwtSecret(configService: ConfigService): string {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT_SECRET is required');
+    }
+    return secret;
+  }
+
   constructor(
     configService: ConfigService,
     private userService: UserService,
@@ -13,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get('JWT_SECRET', 'kuli-gift-secret-2026'),
+      secretOrKey: JwtStrategy.getJwtSecret(configService),
     });
   }
 

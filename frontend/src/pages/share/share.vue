@@ -2,13 +2,14 @@
 import { ref, onMounted } from 'vue';
 import { api } from '@/api/index';
 
-const stats = ref({ totalShares: 0, points: 0 });
+const stats = ref<{ totalShares: number; points: number }>({ totalShares: 0, points: 0 });
 
 onMounted(async () => {
   try {
     const res = await api.share.stats();
-    stats.value = res as any;
-  } catch (e) {}
+    const data = res as any;
+    stats.value = { totalShares: data?.totalShares || 0, points: data?.points || 0 };
+  } catch (_) {}
 });
 </script>
 

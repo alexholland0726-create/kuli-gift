@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { api } from '@/api/index';
 
 const availableCoupons = ref<any[]>([]);
 const myCoupons = ref<any[]>([]);
@@ -12,27 +13,26 @@ onMounted(() => {
 
 async function loadAvailable() {
   try {
-    const res: any = await uni.request({ url: '/api/coupons/available', method: 'GET' });
-    availableCoupons.value = res.data || [];
-  } catch (e) {}
+    const res = await uni.request({ url: 'https://api.da-fire.com/api/coupons/available', method: 'GET' }) as any;
+    availableCoupons.value = Array.isArray(res.data) ? res.data : [];
+  } catch (_) {}
 }
 
 async function loadMine() {
   try {
-    const res: any = await uni.request({ url: '/api/coupons/mine', method: 'GET' });
-    myCoupons.value = res.data || [];
-  } catch (e) {}
+    const res = await uni.request({ url: 'https://api.da-fire.com/api/coupons/mine', method: 'GET' }) as any;
+    myCoupons.value = Array.isArray(res.data) ? res.data : [];
+  } catch (_) {}
 }
 
 async function claim(couponId: number) {
   try {
-    await uni.request({ url: `/api/coupons/${couponId}/claim`, method: 'POST' });
+    await uni.request({ url: `https://api.da-fire.com/api/coupons/${couponId}/claim`, method: 'POST' });
     uni.showToast({ title: '领取成功', icon: 'success' });
     loadAvailable();
     loadMine();
   } catch (e: any) {
-    const data = (e as any).data || {};
-    uni.showToast({ title: data.message || '领取失败', icon: 'none' });
+    uni.showToast({ title: e?.data?.message || '领取失败', icon: 'none' });
   }
 }
 
@@ -79,7 +79,7 @@ function getStatusText(status: string) {
           </view>
         </view>
         <view class="coupon-action">
-          <text class="claim-btn" @tap="claim(c.id)" v-if="c.totalStock === 0 || c.usedStock < c.totalStock">领取</text>
+          <text class="claim-btn" @tap="claim(c.id)" v-if="c.totalStock === 0 || (c.usedStock || 0) < c.totalStock">领取</text>
           <text class="claim-btn disabled" v-else>已领完</text>
         </view>
       </view>
@@ -95,8 +95,8 @@ function getStatusText(status: string) {
           <text class="coupon-value" v-else>券</text>
         </view>
         <view class="coupon-right">
-          <text class="coupon-name">{{ uc.coupon?.name }}</text>
-          <text class="coupon-condition">截止: {{ uc.coupon?.endTime?.split('T')[0] }}</text>
+          <text class="coupon-name">{{ uc.coupon?.name || '优惠券' }}</text>
+          <text class="coupon-condition" v-if="uc.coupon?.endTime">截止: {{ String(uc.coupon.endTime).split('T')[0] }}</text>
         </view>
         <view class="coupon-status-tag">
           <text>{{ getStatusText(uc.status) }}</text>

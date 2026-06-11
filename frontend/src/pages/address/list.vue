@@ -1,16 +1,30 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 
-const addresses = ref<any[]>([]);
+interface Address {
+  id: number;
+  name: string;
+  phone: string;
+  province: string;
+  city: string;
+  district: string;
+  detail: string;
+  isDefault: boolean;
+}
 
-onMounted(() => loadAddresses());
+const addresses = ref<Address[]>([]);
+
+onShow(() => loadAddresses());
 
 async function loadAddresses() {
   try {
-    const res = await uni.request({ url: '/api/addresses', method: 'GET' });
-    addresses.value = (res as any).data || [];
-  } catch (e) { console.error(e); }
+    const res = await api.addresses.list();
+    addresses.value = Array.isArray(res) ? res : [];
+  } catch (_) {
+    addresses.value = [];
+  }
 }
 
 function goAdd() {
@@ -23,9 +37,14 @@ function goEdit(id: number) {
 
 async function setDefault(id: number) {
   try {
-    await uni.request({ url: `/api/addresses/${id}`, method: 'PUT', data: { isDefault: true } });
-    loadAddresses();
-  } catch (e) {}
+    const addr = addresses.value.find(a => a.id === id);
+    if (!addr) return;
+    await api.addresses.update(id, { ...addr, isDefault: true });
+    await loadAddresses();
+    uni.showToast({ title: '已设为默认', icon: 'success' });
+  } catch (_) {
+    uni.showToast({ title: '设置失败', icon: 'none' });
+  }
 }
 
 async function remove(id: number) {
@@ -34,20 +53,31 @@ async function remove(id: number) {
     content: '确定要删除该地址吗？',
     success: async (res) => {
       if (res.confirm) {
-        await uni.request({ url: `/api/addresses/${id}`, method: 'DELETE' });
-        loadAddresses();
+        try {
+          await api.addresses.remove(id);
+          await loadAddresses();
+          uni.showToast({ title: '已删除', icon: 'success' });
+        } catch (_) {
+          uni.showToast({ title: '删除失败', icon: 'none' });
+        }
       }
     },
   });
 }
 
-function selectAddress(addr: any) {
+function selectAddress(addr: Address) {
   const pages = getCurrentPages();
   const prevPage = pages[pages.length - 2];
-  if (prevPage && (prevPage as any).route === 'pages/order/confirm') {
-    (prevPage as any).$vm?.onAddressSelect(addr);
-    uni.navigateBack();
+  if (prevPage) {
+    const vm = (prevPage as any).$vm;
+    if (vm?.onAddressSelect) {
+      vm.onAddressSelect(addr);
+      uni.navigateBack();
+      return;
+    }
   }
+  // 没有上一页需要回传时，直接返回
+  uni.navigateBack();
 }
 </script>
 

@@ -4,9 +4,16 @@
     {"path": "pages/category/category", "style": {"navigationBarTitleText": "分类"}},
     {"path": "pages/product/detail", "style": {"navigationBarTitleText": "商品详情"}},
     {"path": "pages/product/list", "style": {"navigationBarTitleText": "商品列表"}},
+    {"path": "pages/search/search", "style": {"navigationBarTitleText": "搜索"}},
     {"path": "pages/cart/cart", "style": {"navigationBarTitleText": "购物车"}},
     {"path": "pages/user/user", "style": {"navigationBarTitleText": "我的"}},
     {"path": "pages/order/list", "style": {"navigationBarTitleText": "我的订单"}},
+    {"path": "pages/order/settle", "style": {"navigationBarTitleText": "确认订单"}},
+    {"path": "pages/address/list", "style": {"navigationBarTitleText": "收货地址"}},
+    {"path": "pages/address/edit", "style": {"navigationBarTitleText": "编辑地址"}},
+    {"path": "pages/coupon/list", "style": {"navigationBarTitleText": "优惠券"}},
+    {"path": "pages/groupon/list", "style": {"navigationBarTitleText": "拼团"}},
+    {"path": "pages/groupon/detail", "style": {"navigationBarTitleText": "拼团详情"}},
     {"path": "pages/share/share", "style": {"navigationBarTitleText": "分享记录"}}
   ],
   "globalStyle": {

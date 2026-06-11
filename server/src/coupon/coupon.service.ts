@@ -75,7 +75,7 @@ export class CouponService {
     if (status) where.status = status;
     return this.userCouponRepo.find({
       where,
-      relations: ['coupon'] as any,
+      relations: { coupon: true },
       order: { gotAt: 'DESC' },
     });
   }
@@ -84,7 +84,7 @@ export class CouponService {
   async useCoupon(userCouponId: number, userId: number, orderId: number) {
     const uc = await this.userCouponRepo.findOne({
       where: { id: userCouponId, userId, status: 'unused' },
-      relations: ['coupon'] as any,
+      relations: { coupon: true },
     });
     if (!uc) throw new BadRequestException('优惠券不可用');
     if (uc.coupon.endTime && uc.coupon.endTime < new Date())
@@ -110,11 +110,16 @@ export class CouponService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async expireCoupons() {
     const now = new Date();
-    await this.userCouponRepo.update(
-      { status: 'unused' },
-      { status: 'expired' },
-    );
-    // 实际需要 join coupon 表查 endTime，简化处理
+    await this.userCouponRepo
+      .createQueryBuilder()
+      .update(UserCoupon)
+      .set({ status: 'expired' })
+      .where('status = :status', { status: 'unused' })
+      .andWhere(
+        'couponId IN (SELECT id FROM coupons WHERE endTime IS NOT NULL AND endTime < :now)',
+        { now },
+      )
+      .execute();
   }
 
   private async getUserOrderCount(userId: number): Promise<number> {

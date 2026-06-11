@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
@@ -37,8 +37,8 @@ export class OrderService {
     });
   }
 
-  async findOne(id: number): Promise<Order> {
-    const order = await this.repo.findOne({ where: { id } });
+  async findOne(id: number, userId?: number): Promise<Order> {
+    const order = await this.repo.findOne({ where: userId ? { id, userId } : { id } });
     if (!order) throw new NotFoundException('订单不存在');
     return order;
   }
@@ -50,5 +50,16 @@ export class OrderService {
     if (status === OrderStatus.COMPLETED) updateData.completedAt = new Date();
     await this.repo.update(id, updateData);
     return this.findOne(id);
+  }
+
+  async cancel(id: number, userId: number): Promise<Order> {
+    const order = await this.repo.findOne({ where: { id, userId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException('只有待付款订单可以取消');
+    }
+
+    order.status = OrderStatus.CANCELLED;
+    return this.repo.save(order);
   }
 }

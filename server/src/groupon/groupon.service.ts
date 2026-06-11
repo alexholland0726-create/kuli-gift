@@ -67,7 +67,7 @@ export class GrouponService {
   async onPaySuccess(grouponOrderId: number) {
     const order = await this.grouponOrderRepo.findOne({
       where: { id: grouponOrderId },
-      relations: ['activity'] as any,
+      relations: { activity: true },
     });
     if (!order) throw new NotFoundException('拼团订单不存在');
 
@@ -118,7 +118,7 @@ export class GrouponService {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const timeoutOrders = await this.grouponOrderRepo.find({
       where: { status: 'paid', createdAt: LessThan(oneHourAgo) },
-      relations: ['activity'] as any,
+      relations: { activity: true },
     });
 
     for (const order of timeoutOrders) {

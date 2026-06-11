@@ -15,7 +15,7 @@ export class CategoryService {
   }
 
   async findOne(id: number): Promise<Category> {
-    const cat = await this.repo.findOne({ where: { id }, relations: ['products'] as any });
+    const cat = await this.repo.findOne({ where: { id }, relations: { products: true } });
     if (!cat) throw new NotFoundException('分类不存在');
     return cat;
   }

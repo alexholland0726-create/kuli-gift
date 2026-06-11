@@ -1,64 +1,48 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from '../order/entities/order.entity';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 import * as https from 'https';
+import { Repository } from 'typeorm';
+import { Order, OrderStatus } from '../order/entities/order.entity';
 
-/**
- * 微信支付 V3 JSAPI/小程序支付
- * 文档：https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi
- *
- * 前置条件（需在 .env 中配置）：
- *   WX_APPID=    微信小程序AppID
- *   WX_MCHID=    微信商户号
- *   WX_API_V3_KEY=   APIv3密钥（32位，在商户平台设置）
- *   WX_CERT_PATH=   商户证书路径（p12或pem）
- *   WX_NOTIFY_URL=  支付回调地址（如 https://kuli.com/api/pay/notify）
- */
+interface WxPayConfig {
+  appid: string;
+  mchid: string;
+  apiV3Key: string;
+  certSerial: string;
+  privateKey: string;
+  notifyUrl: string;
+}
 
 @Injectable()
 export class PayService {
   private readonly baseUrl = 'https://api.mch.weixin.qq.com';
-  // private readonly baseUrl = 'https://api2.mch.weixin.qq.com'; // 备用域名
 
   constructor(
     @InjectRepository(Order)
     private orderRepo: Repository<Order>,
   ) {}
 
-  /**
-   * 微信支付统一下单（JSAPI / 小程序）
-   * 对应微信API：POST /v3/pay/transactions/jsapi
-   */
-  async createOrder(
-    orderId: number,
-    userId: number,
-    openid: string,
-    clientIp: string,
-  ): Promise<any> {
+  async createOrder(orderId: number, userId: number, openid: string, clientIp: string): Promise<any> {
+    if (!openid) throw new BadRequestException('用户 openid 缺失，请先完成微信登录');
+
+    const config = this.getConfig();
     const order = await this.orderRepo.findOne({ where: { id: orderId, userId } });
     if (!order) throw new BadRequestException('订单不存在');
+    if (order.status !== OrderStatus.PENDING) throw new BadRequestException('订单状态不可支付');
 
     const totalFee = Math.round(Number(order.payAmount) * 100);
     if (totalFee <= 0) throw new BadRequestException('订单金额无效');
 
-    const appid = process.env.WX_APPID || '';
-    const mchid = process.env.WX_MCHID || '';
-    const notifyUrl = process.env.WX_NOTIFY_URL || 'https://kuli.com/api/pay/notify';
-    const outTradeNo = order.orderNo || `kuli${orderId}_${Date.now()}`;
-
-    // === Step 1: 构建请求body ===
     const body = {
-      appid,
-      mchid,
+      appid: config.appid,
+      mchid: config.mchid,
       description: '酷礼工坊-商品购买',
-      out_trade_no: outTradeNo,
-      time_expire: new Date(Date.now() + 30 * 60 * 1000).toISOString().replace(/\.\d{3}Z/, '+08:00'),
+      out_trade_no: order.orderNo,
+      time_expire: this.formatWechatTime(new Date(Date.now() + 30 * 60 * 1000)),
       attach: `orderId=${orderId}`,
-      notify_url: notifyUrl,
-      goods_tag: '',
-      support_fapiao: false,
+      notify_url: config.notifyUrl,
       amount: {
         total: totalFee,
         currency: 'CNY',
@@ -69,28 +53,20 @@ export class PayService {
       scene_info: {
         payer_client_ip: clientIp || '127.0.0.1',
       },
-      settle_info: {
-        profit_sharing: false,
-      },
     };
 
-    // === Step 2: 发送请求到微信支付 ===
-    const result = await this.requestWxPay('/v3/pay/transactions/jsapi', body, appid, mchid);
+    const result = await this.requestWxPay('/v3/pay/transactions/jsapi', body, config);
+    if (!result.prepay_id) {
+      throw new InternalServerErrorException('微信支付未返回 prepay_id');
+    }
 
-    // === Step 3: 构造小程序调起支付的参数 ===
-    const prepayId = result.prepay_id;
     const nonceStr = this.generateNonceStr();
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    const packageStr = `prepay_id=${prepayId}`;
-
-    // 签名串格式：appId\ntimeStamp\nnonceStr\npackage\n
-    const signStr = `${appid}\n${timestamp}\n${nonceStr}\n${packageStr}\n`;
-    const paySign = this.signWithPrivateKey(signStr);
-
-    // 保存 prepay_id 到订单记录
-    if (order.id) {
-      await this.orderRepo.update(order.id, { orderNo: outTradeNo } as any);
-    }
+    const packageStr = `prepay_id=${result.prepay_id}`;
+    const paySign = this.signWithPrivateKey(
+      `${config.appid}\n${timestamp}\n${nonceStr}\n${packageStr}\n`,
+      config.privateKey,
+    );
 
     return {
       timeStamp: timestamp,
@@ -98,111 +74,60 @@ export class PayService {
       package: packageStr,
       signType: 'RSA',
       paySign,
-      orderNo: outTradeNo,
+      orderNo: order.orderNo,
     };
   }
 
-  /**
-   * 支付结果通知（微信回调）
-   * 对应微信回调通知格式
-   */
-  async handleNotify(headers: any, body: any): Promise<string> {
+  async handleNotify(headers: Record<string, string>, body: any, rawBody: string): Promise<{ code: string; message: string }> {
     try {
-      // 验证回调签名
-      const wechatpaySignature = headers['wechatpay-signature'];
-      const wechatpayTimestamp = headers['wechatpay-timestamp'];
-      const wechatpayNonce = headers['wechatpay-nonce'];
-      const wechatpaySerial = headers['wechatpay-serial'];
+      const config = this.getConfig();
+      this.verifyNotifySignature(headers, rawBody);
 
-      // 验证签名（需平台证书）
-      // const isValid = this.verifySignature(...);
-      
-      // 解密resource
-      if (body?.resource) {
-        const ciphertext = Buffer.from(body.resource.ciphertext, 'base64');
-        const associatedData = body.resource.associated_data || '';
-        const nonce = body.resource.nonce;
-        const apiV3Key = process.env.WX_API_V3_KEY || '';
-
-        // AES-GCM 解密
-        const authTag = ciphertext.slice(ciphertext.length - 16);
-        const data = ciphertext.slice(0, ciphertext.length - 16);
-        const decipher = crypto.createDecipheriv('aes-256-gcm', apiV3Key, nonce);
-        decipher.setAAD(Buffer.from(associatedData));
-        decipher.setAuthTag(authTag);
-        const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
-        const result = JSON.parse(decrypted.toString('utf8'));
-
-        // 更新订单状态
-        const outTradeNo = result.out_trade_no;
-        if (outTradeNo) {
-          await this.orderRepo.update(
-            { orderNo: outTradeNo },
-            { status: 'paid' as any, paidAt: new Date() },
-          );
-        }
+      const resource = body?.resource;
+      if (!resource?.ciphertext || !resource?.nonce) {
+        throw new Error('通知数据格式不正确');
       }
 
-      // 返回 SUCCESS 告诉微信不再回调
-      return JSON.stringify({ code: 'SUCCESS', message: '成功' });
+      const result = this.decryptResource(resource, config.apiV3Key);
+      if (result.trade_state === 'SUCCESS' && result.out_trade_no) {
+        await this.orderRepo.update(
+          { orderNo: result.out_trade_no },
+          { status: OrderStatus.PAID, paidAt: new Date(result.success_time || Date.now()) },
+        );
+      }
+
+      return { code: 'SUCCESS', message: '成功' };
     } catch (err) {
-      return JSON.stringify({ code: 'FAIL', message: (err as Error).message });
+      return { code: 'FAIL', message: (err as Error).message };
     }
   }
 
-  /**
-   * 查询订单支付状态
-   * GET /v3/pay/transactions/out-trade-no/{out_trade_no}
-   */
   async queryPayStatus(orderNo: string): Promise<any> {
-    const appid = process.env.WX_APPID || '';
-    const mchid = process.env.WX_MCHID || '';
-    const path = `/v3/pay/transactions/out-trade-no/${orderNo}?mchid=${mchid}`;
-    
-    try {
-      const result = await this.requestWxPay(path, null, appid, mchid, 'GET');
-      return {
-        trade_state: result.trade_state,
-        trade_state_desc: result.trade_state_desc,
-        ...result,
-      };
-    } catch (e) {
-      return { trade_state: 'NOTPAY', trade_state_desc: '未支付' };
-    }
+    const config = this.getConfig();
+    const path = `/v3/pay/transactions/out-trade-no/${encodeURIComponent(orderNo)}?mchid=${config.mchid}`;
+    return this.requestWxPay(path, null, config, 'GET');
   }
 
-  /**
-   * 关闭订单
-   * POST /v3/pay/transactions/out-trade-no/{out_trade_no}/close
-   */
   async closeOrder(orderNo: string): Promise<void> {
-    const mchid = process.env.WX_MCHID || '';
-    const path = `/v3/pay/transactions/out-trade-no/${orderNo}/close`;
-    await this.requestWxPay(path, { mchid }, '', mchid, 'POST');
+    const config = this.getConfig();
+    const path = `/v3/pay/transactions/out-trade-no/${encodeURIComponent(orderNo)}/close`;
+    await this.requestWxPay(path, { mchid: config.mchid }, config, 'POST');
   }
 
-  /**
-   * 向微信支付 API V3 发送请求
-   */
   private requestWxPay(
     path: string,
     body: any | null,
-    appid: string,
-    mchid: string,
+    config: WxPayConfig,
     method: string = 'POST',
   ): Promise<any> {
     return new Promise((resolve, reject) => {
       const bodyStr = body ? JSON.stringify(body) : '';
       const url = new URL(this.baseUrl + path);
-
-      // 生成 Authorization
       const nonceStr = this.generateNonceStr();
       const timestamp = Math.floor(Date.now() / 1000).toString();
-      const message = `${method}\n${url.pathname}${url.search}\n${timestamp}\n${nonceStr}\n${bodyStr ? bodyStr : ''}\n`;
-      const signature = this.signWithPrivateKey(message);
-      const serialNo = process.env.WX_CERT_SERIAL || '';
-
-      const auth = `WECHATPAY2-SHA256-RSA2048 mchid="${mchid}",nonce_str="${nonceStr}",timestamp="${timestamp}",serial_no="${serialNo}",signature="${signature}"`;
+      const message = `${method}\n${url.pathname}${url.search}\n${timestamp}\n${nonceStr}\n${bodyStr}\n`;
+      const signature = this.signWithPrivateKey(message, config.privateKey);
+      const auth = `WECHATPAY2-SHA256-RSA2048 mchid="${config.mchid}",nonce_str="${nonceStr}",timestamp="${timestamp}",serial_no="${config.certSerial}",signature="${signature}"`;
 
       const options = {
         hostname: url.hostname,
@@ -210,59 +135,118 @@ export class PayService {
         path: url.pathname + url.search,
         method,
         headers: {
-          'Authorization': auth,
-          'Accept': 'application/json',
-          'Content-Type': bodyStr ? 'application/json' : '',
+          Authorization: auth,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
           'User-Agent': 'kuli-gift/1.0',
-        } as any,
+        },
         timeout: 10000,
       };
-
-      if (!bodyStr) delete options.headers['Content-Type'];
 
       const req = https.request(options, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
-          try {
-            if (res.statusCode! >= 200 && res.statusCode! < 300) {
-              resolve(data ? JSON.parse(data) : {});
-            } else {
-              reject(new Error(`微信支付API错误(${res.statusCode}): ${data}`));
-            }
-          } catch (e) {
-            reject(new Error(`解析响应失败: ${data}`));
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data ? JSON.parse(data) : {});
+            return;
           }
+          reject(new Error(`微信支付 API 错误(${res.statusCode}): ${data}`));
         });
       });
 
       req.on('error', (e) => reject(new Error(`请求微信支付失败: ${e.message}`)));
-      req.on('timeout', () => { req.destroy(); reject(new Error('请求微信支付超时')); });
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('请求微信支付超时'));
+      });
 
       if (bodyStr) req.write(bodyStr);
       req.end();
     });
   }
 
-  /**
-   * 使用商户证书私钥签名
-   * 私钥需配置在环境变量 WX_PRIVATE_KEY 或 WX_CERT_PATH
-   */
-  private signWithPrivateKey(data: string): string {
-    const privateKey = process.env.WX_PRIVATE_KEY || '';
-    if (!privateKey) {
-      // 开发环境返回模拟签名
-      return 'mock_signature_for_dev';
+  private decryptResource(resource: any, apiV3Key: string): any {
+    const ciphertext = Buffer.from(resource.ciphertext, 'base64');
+    const authTag = ciphertext.subarray(ciphertext.length - 16);
+    const data = ciphertext.subarray(0, ciphertext.length - 16);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(apiV3Key, 'utf8'), resource.nonce);
+    if (resource.associated_data) decipher.setAAD(Buffer.from(resource.associated_data));
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
+    return JSON.parse(decrypted.toString('utf8'));
+  }
+
+  private verifyNotifySignature(headers: Record<string, string>, rawBody: string): void {
+    const timestamp = headers['wechatpay-timestamp'];
+    const nonce = headers['wechatpay-nonce'];
+    const signature = headers['wechatpay-signature'];
+    const certPath = process.env.WX_PLATFORM_CERT_PATH || '';
+
+    if (!timestamp || !nonce || !signature) {
+      throw new Error('微信支付通知签名头缺失');
     }
+    if (!certPath || !fs.existsSync(certPath)) {
+      throw new Error('WX_PLATFORM_CERT_PATH 未配置或文件不存在');
+    }
+
+    const cert = fs.readFileSync(certPath, 'utf8');
+    const message = `${timestamp}\n${nonce}\n${rawBody}\n`;
+    const verifier = crypto.createVerify('RSA-SHA256');
+    verifier.update(message);
+    verifier.end();
+    const ok = verifier.verify(cert, signature, 'base64');
+    if (!ok) throw new Error('微信支付通知签名验证失败');
+  }
+
+  private getConfig(): WxPayConfig {
+    const appid = process.env.WX_APPID || process.env.WECHAT_APPID || '';
+    const mchid = process.env.WX_MCHID || '';
+    const apiV3Key = process.env.WX_API_V3_KEY || '';
+    const certSerial = process.env.WX_CERT_SERIAL || '';
+    const notifyUrl = process.env.WX_NOTIFY_URL || '';
+    const privateKey = this.getPrivateKey();
+    const missing = [
+      ['WX_APPID/WECHAT_APPID', appid],
+      ['WX_MCHID', mchid],
+      ['WX_API_V3_KEY', apiV3Key],
+      ['WX_CERT_SERIAL', certSerial],
+      ['WX_PRIVATE_KEY 或 WX_PRIVATE_KEY_PATH', privateKey],
+      ['WX_NOTIFY_URL', notifyUrl],
+    ].filter(([, value]) => !value).map(([key]) => key);
+
+    if (apiV3Key && Buffer.byteLength(apiV3Key, 'utf8') !== 32) {
+      throw new InternalServerErrorException('WX_API_V3_KEY 必须是 32 字节');
+    }
+    if (missing.length) {
+      throw new InternalServerErrorException(`微信支付配置缺失: ${missing.join(', ')}`);
+    }
+
+    return { appid, mchid, apiV3Key, certSerial, privateKey, notifyUrl };
+  }
+
+  private getPrivateKey(): string {
+    const raw = process.env.WX_PRIVATE_KEY || '';
+    if (raw) return raw.replace(/\\n/g, '\n');
+
+    const path = process.env.WX_PRIVATE_KEY_PATH || '';
+    if (path && fs.existsSync(path)) return fs.readFileSync(path, 'utf8');
+    return '';
+  }
+
+  private signWithPrivateKey(data: string, privateKey: string): string {
     const sign = crypto.createSign('RSA-SHA256');
     sign.update(data);
+    sign.end();
     return sign.sign(privateKey, 'base64');
   }
 
-  /**
-   * 生成随机字符串
-   */
   private generateNonceStr(): string {
     return crypto.randomBytes(16).toString('hex');
+  }
+
+  private formatWechatTime(date: Date): string {
+    const offsetMs = 8 * 60 * 60 * 1000;
+    return new Date(date.getTime() + offsetMs).toISOString().replace(/\.\d{3}Z$/, '+08:00');
   }
 }

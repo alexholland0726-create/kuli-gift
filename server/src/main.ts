@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({
     origin: '*',
@@ -12,7 +12,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.setGlobalPrefix('api', { exclude: ['/'] });
+  app.setGlobalPrefix('', { exclude: ['/'] });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 

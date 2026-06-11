@@ -24,13 +24,13 @@ export class ProductService {
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
-      relations: ['category'] as any,
+      relations: { category: true },
     });
     return { items, total };
   }
 
   async findOne(id: number): Promise<Product> {
-    const product = await this.repo.findOne({ where: { id }, relations: ['category'] as any });
+    const product = await this.repo.findOne({ where: { id }, relations: { category: true } });
     if (!product) throw new NotFoundException('商品不存在');
     return product;
   }

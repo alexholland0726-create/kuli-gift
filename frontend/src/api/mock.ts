@@ -1,0 +1,96 @@
+export const demoCategories = [
+  { id: 1, name: '商务礼品', icon: '' },
+  { id: 2, name: '员工福利', icon: '' },
+  { id: 3, name: '箱包定制', icon: '' },
+  { id: 4, name: '服装鞋帽', icon: '' },
+  { id: 5, name: '运动户外', icon: '' },
+  { id: 6, name: '节日礼盒', icon: '' },
+  { id: 7, name: '会议伴手礼', icon: '' },
+  { id: 8, name: '品牌周边', icon: '' },
+];
+
+export const demoProducts = [
+  {
+    id: 101,
+    categoryId: 1,
+    name: '企业定制商务保温杯礼盒',
+    description: '适合客户拜访、会议伴手礼和员工福利，可加 LOGO，可定制包装。',
+    price: 89,
+    originalPrice: 129,
+    coverImage: '',
+    images: [],
+    stock: 500,
+    sales: 268,
+    specs: [
+      { name: '颜色', values: ['曜石黑', '珍珠白', '香槟金'] },
+      { name: '包装', values: ['单杯装', '礼盒装'] },
+    ],
+    tags: ['热销', '可定制'],
+    shareTitle: '酷礼工坊企业定制商务保温杯',
+    shareDesc: '品质好礼，适合企业批量采购。',
+  },
+  {
+    id: 102,
+    categoryId: 3,
+    name: '轻商务双肩包定制款',
+    description: '通勤、展会、员工入职礼包适用，支持企业标识和批量交付。',
+    price: 168,
+    originalPrice: 239,
+    coverImage: '',
+    images: [],
+    stock: 300,
+    sales: 156,
+    specs: [{ name: '颜色', values: ['黑色', '深灰', '藏蓝'] }],
+    tags: ['企业采购', '箱包'],
+    shareTitle: '轻商务双肩包定制款',
+    shareDesc: '适合企业活动和员工福利。',
+  },
+  {
+    id: 103,
+    categoryId: 4,
+    name: '企业文化衫团体定制',
+    description: '适合团建、赛事、展会和门店活动，支持多尺码批量定制。',
+    price: 49,
+    originalPrice: 69,
+    coverImage: '',
+    images: [],
+    stock: 1000,
+    sales: 420,
+    specs: [
+      { name: '尺码', values: ['S', 'M', 'L', 'XL', 'XXL'] },
+      { name: '颜色', values: ['白色', '黑色', '橙色'] },
+    ],
+    tags: ['团体定制', '服装'],
+    shareTitle: '企业文化衫团体定制',
+    shareDesc: '团建活动、品牌宣传都适合。',
+  },
+  {
+    id: 104,
+    categoryId: 5,
+    name: '户外运动随行礼包',
+    description: '组合运动毛巾、水杯和收纳袋，适合赛事活动和客户关怀。',
+    price: 118,
+    originalPrice: 168,
+    coverImage: '',
+    images: [],
+    stock: 260,
+    sales: 98,
+    specs: [{ name: '套装', values: ['基础套装', '升级套装'] }],
+    tags: ['运动户外', '礼盒'],
+    shareTitle: '户外运动随行礼包',
+    shareDesc: '适合活动礼赠和运动赛事。',
+  },
+];
+
+export const demoUser = {
+  id: 1,
+  openid: 'demo_openid',
+  nickname: '体验用户',
+  avatar: '',
+  points: 120,
+  level: '企业会员',
+};
+
+export function getDemoProduct(id: number) {
+  return demoProducts.find((item) => item.id === id) || demoProducts[0];
+}
