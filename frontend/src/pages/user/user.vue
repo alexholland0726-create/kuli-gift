@@ -4,169 +4,270 @@ import { onShow } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 import { demoUser } from '@/api/mock';
 
-const userInfo = ref<any>(null);
-const isDemoMode = ref(false);
+const userInfo = ref<any>(demoUser);
 const loginLoading = ref(false);
 
 onShow(async () => {
-  const cachedUser = uni.getStorageSync('demoUser');
-  if (cachedUser) {
-    userInfo.value = cachedUser;
-    isDemoMode.value = true;
+  const token = uni.getStorageSync('token');
+  if (!token) {
+    userInfo.value = demoUser;
     return;
   }
 
-  const token = uni.getStorageSync('token');
-  if (!token) return;
-
   try {
     const res = await api.user.info();
-    userInfo.value = res as any;
-  } catch (_) {}
+    userInfo.value = res || demoUser;
+  } catch (_) {
+    userInfo.value = demoUser;
+  }
 });
-
-function goOrders() {
-  uni.navigateTo({ url: '/pages/order/list' });
-}
-
-function goAddresses() {
-  uni.navigateTo({ url: '/pages/address/list' });
-}
-
-function goCoupons() {
-  uni.navigateTo({ url: '/pages/coupon/list' });
-}
-
-function goShare() {
-  uni.navigateTo({ url: '/pages/share/share' });
-}
 
 function login() {
   if (loginLoading.value) return;
   loginLoading.value = true;
-
   uni.login({
     provider: 'weixin',
     success: (res) => {
-      api.user.login(res.code || 'mock_openid', { nickname: '微信用户' }).then((r: any) => {
-        uni.removeStorageSync('demoUser');
+      api.user.login(res.code || '', { nickname: '微信用户' }).then((r: any) => {
         uni.setStorageSync('token', r.token);
-        isDemoMode.value = false;
         userInfo.value = r.user;
         uni.showToast({ title: '登录成功', icon: 'success' });
       }).catch(() => {
-        useDemoLogin();
+        uni.showToast({ title: '暂用体验账号', icon: 'none' });
+        userInfo.value = demoUser;
       }).finally(() => {
         loginLoading.value = false;
       });
     },
     fail: () => {
-      useDemoLogin();
       loginLoading.value = false;
+      uni.showToast({ title: '暂用体验账号', icon: 'none' });
     },
   });
 }
 
-function useDemoLogin() {
-  isDemoMode.value = true;
-  userInfo.value = demoUser;
-  uni.setStorageSync('demoUser', demoUser);
-  uni.setStorageSync('token', 'demo_token');
-  uni.showToast({ title: '体验登录成功', icon: 'none' });
-}
-
-const menuItems = [
-  { icon: '📋', text: '我的订单', action: goOrders },
-  { icon: '📍', text: '收货地址', action: goAddresses },
-  { icon: '🎫', text: '优惠券', action: goCoupons },
-  { icon: '📤', text: '分享记录', action: goShare },
+const stats = [
+  { label: '积分', key: 'points' },
+  { label: '购物车', key: 'cartCount' },
+  { label: '收藏', key: 'favoriteCount' },
+  { label: '足迹', key: 'footprintCount' },
 ];
+
+const orderItems = [
+  { icon: '□', text: '待付款', url: '/pages/order/list?status=pending' },
+  { icon: '◇', text: '待收货', url: '/pages/order/list?status=shipped' },
+  { icon: '￥', text: '退款/售后', url: '/pages/order/list?status=refund' },
+  { icon: '▤', text: '全部订单', url: '/pages/order/list' },
+];
+
+const serviceItems = [
+  { icon: '☰', text: '全部方案', url: '/pages/product/list' },
+  { icon: '▣', text: '制作方案', url: '/pages/share/share' },
+  { icon: '☎', text: '电话客服', url: '' },
+  { icon: '☷', text: '微信客服', url: '' },
+  { icon: '⌖', text: '我的地址', url: '/pages/address/list' },
+  { icon: '▦', text: '二维码', url: '' },
+];
+
+function openItem(url: string) {
+  if (!url) {
+    uni.showToast({ title: '客服入口待配置', icon: 'none' });
+    return;
+  }
+  uni.navigateTo({ url });
+}
 </script>
 
 <template>
   <view class="page">
-    <!-- 用户头部 -->
-    <view class="user-header">
-      <view class="user-avatar">
-        <image :src="userInfo?.avatar || 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22 viewBox=%220 0 120 120%22><rect fill=%22%23f0e0cc%22 width=%22120%22 height=%22120%22 rx=%2260%22/><text x=%2260%22 y=%2268%22 text-anchor=%22middle%22 fill=%22%23B8895A%22 font-size=%2242%22>君</text></svg>'" class="avatar-img" mode="aspectFill" />
+    <view class="profile">
+      <view class="title">我的</view>
+      <view class="profile-row">
+        <view class="avatar">
+          <text class="avatar-text">礼</text>
+        </view>
+        <view class="profile-main" @tap="!userInfo && login()">
+          <text class="user-id">ID:{{ userInfo?.id || '未登录' }}</text>
+          <text class="phone">联系方式：{{ userInfo?.phone || '点击登录后完善' }}</text>
+        </view>
+        <view class="member-card">名片</view>
       </view>
-      <text class="user-name">{{ userInfo?.nickname || '点击登录' }}</text>
-      <text class="demo-label" v-if="isDemoMode">API 未连接，当前为体验账号</text>
-      <view class="login-btn" v-if="!userInfo" @tap="login">{{ loginLoading ? '登录中...' : '微信登录' }}</view>
-    </view>
-
-    <!-- 积分/等级 -->
-    <view class="stats-row" v-if="userInfo">
-      <view class="stat-item">
-        <text class="stat-num">{{ userInfo.points || 0 }}</text>
-        <text class="stat-label">积分</text>
-      </view>
-      <view class="stat-divider" />
-      <view class="stat-item">
-        <text class="stat-num">{{ userInfo.level || '普通' }}</text>
-        <text class="stat-label">等级</text>
+      <view class="login-btn" v-if="!uni.getStorageSync('token')" @tap="login">
+        {{ loginLoading ? '登录中...' : '微信登录' }}
       </view>
     </view>
 
-    <!-- 菜单网格 -->
-    <view class="menu-grid">
-      <view class="menu-item" v-for="item in menuItems" :key="item.text" @tap="item.action()">
-        <text class="menu-icon">{{ item.icon }}</text>
-        <text class="menu-text">{{ item.text }}</text>
+    <view class="stats-row">
+      <view class="stat-item" v-for="item in stats" :key="item.key">
+        <text class="stat-num">{{ userInfo?.[item.key] || 0 }}</text>
+        <text class="stat-label">{{ item.label }}</text>
+      </view>
+    </view>
+
+    <view class="panel order-panel">
+      <view class="grid four">
+        <view class="grid-item" v-for="item in orderItems" :key="item.text" @tap="openItem(item.url)">
+          <text class="grid-icon">{{ item.icon }}</text>
+          <text class="grid-text">{{ item.text }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel">
+      <view class="grid four">
+        <view class="grid-item" v-for="item in serviceItems" :key="item.text" @tap="openItem(item.url)">
+          <text class="grid-icon">{{ item.icon }}</text>
+          <text class="grid-text">{{ item.text }}</text>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped>
-.page { background: #f8f8f8; min-height: 100vh; }
-
-.user-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60rpx 0;
-  background: linear-gradient(135deg, #F5E6D3, #E8C9A8);
+.page {
+  min-height: 100vh;
+  padding-bottom: 120rpx;
+  background: #f5f5f5;
 }
-.user-avatar { width: 120rpx; height: 120rpx; border-radius: 60rpx; overflow: hidden; border: 4rpx solid #fff; }
-.avatar-img { width: 100%; height: 100%; }
-.user-name { font-size: 32rpx; font-weight: 500; color: #333; margin-top: 16rpx; }
-.demo-label { margin-top: 8rpx; color: #8d633d; font-size: 22rpx; }
-.login-btn { margin-top: 16rpx; background: #D4A574; color: #fff; padding: 10rpx 40rpx; border-radius: 30rpx; font-size: 26rpx; }
+
+.profile {
+  padding: 42rpx 34rpx 108rpx;
+  background: linear-gradient(180deg, #dfcdb5 0%, #eee5d8 100%);
+}
+
+.title {
+  margin-bottom: 56rpx;
+  color: #333;
+  font-size: 44rpx;
+  font-weight: 750;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 132rpx;
+  height: 132rpx;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .85);
+  border: 6rpx solid #fff;
+  border-radius: 50%;
+}
+
+.avatar-text {
+  color: #c8a579;
+  font-size: 52rpx;
+  font-weight: 700;
+}
+
+.profile-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 28rpx;
+}
+
+.user-id {
+  display: block;
+  color: #333;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.phone {
+  display: block;
+  margin-top: 20rpx;
+  color: #555;
+  font-size: 26rpx;
+}
+
+.member-card {
+  padding: 10rpx 16rpx;
+  color: #fff;
+  background: #333;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+}
+
+.login-btn {
+  display: inline-flex;
+  height: 52rpx;
+  align-items: center;
+  margin-top: 28rpx;
+  padding: 0 28rpx;
+  color: #fff;
+  background: #8a6a3f;
+  border-radius: 26rpx;
+  font-size: 24rpx;
+}
 
 .stats-row {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 0 30rpx;
-  margin-top: -30rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx 0;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
-  position: relative;
-  z-index: 2;
+  margin: -70rpx 28rpx 24rpx;
+  padding: 26rpx 0;
+  background: rgba(255, 255, 255, .82);
+  border-radius: 22rpx;
 }
-.stat-item { flex: 1; text-align: center; }
-.stat-num { font-size: 36rpx; font-weight: 700; color: #D4A574; display: block; }
-.stat-label { font-size: 22rpx; color: #999; margin-top: 4rpx; display: block; }
-.stat-divider { width: 1rpx; height: 40rpx; background: #f0f0f0; }
 
-.menu-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  margin: 30rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  gap: 20rpx;
+.stat-item {
+  flex: 1;
+  text-align: center;
 }
-.menu-item {
+
+.stat-num {
+  display: block;
+  color: #333;
+  font-size: 42rpx;
+}
+
+.stat-label {
+  display: block;
+  margin-top: 8rpx;
+  color: #777;
+  font-size: 24rpx;
+}
+
+.panel {
+  margin: 24rpx 28rpx;
+  padding: 34rpx 18rpx;
+  background: #fff;
+  border-radius: 22rpx;
+}
+
+.grid {
+  display: grid;
+}
+
+.grid.four {
+  grid-template-columns: repeat(4, 1fr);
+  row-gap: 36rpx;
+}
+
+.grid-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16rpx 0;
+  min-height: 108rpx;
 }
-.menu-icon { font-size: 48rpx; }
-.menu-text { font-size: 24rpx; color: #666; margin-top: 10rpx; }
+
+.grid-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 58rpx;
+  color: #444;
+  font-size: 34rpx;
+}
+
+.grid-text {
+  margin-top: 14rpx;
+  color: #666;
+  font-size: 25rpx;
+}
 </style>

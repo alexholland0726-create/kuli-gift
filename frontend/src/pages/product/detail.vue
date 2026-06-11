@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 import { getDemoProduct } from '@/api/mock';
@@ -13,8 +13,8 @@ interface Product {
   id: number;
   name: string;
   description: string;
-  price: number;
-  originalPrice?: number;
+  price: number | string;
+  originalPrice?: number | string;
   images: string[];
   coverImage: string;
   stock: number;
@@ -31,11 +31,10 @@ const id = ref(0);
 const quantity = ref(1);
 const selectedSpecs = ref<Record<string, string>>({});
 const showSpecPanel = ref(false);
-const cartLoading = ref(false);
-const currentImageIndex = ref(0);
-const servicePoints = ['企业批采', 'LOGO 定制', '礼盒包装', '专人选品'];
+const loading = ref(false);
+const actionType = ref<'cart' | 'buy'>('cart');
 
-const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="750" height="750" viewBox="0 0 750 750"><rect fill="%23f5f5f5" width="750" height="750"/><text x="375" y="385" text-anchor="middle" fill="%23ccc" font-size="28">暂无图片</text></svg>';
+const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="750" height="750" viewBox="0 0 750 750"><rect fill="%23f5f5f5" width="750" height="750"/><text x="375" y="385" text-anchor="middle" fill="%23aaa" font-size="28">暂无图片</text></svg>';
 
 onLoad((opt: any) => {
   if (opt.id) {
@@ -47,36 +46,27 @@ onLoad((opt: any) => {
 async function loadProduct() {
   try {
     const res = await api.products.detail(id.value);
-    product.value = res as any;
-    if (!product.value?.id) product.value = getDemoProduct(id.value) as any;
-    // 初始化规格选择
-    if (product.value?.specs) {
-      product.value.specs.forEach((s: Spec) => {
-        if (s.values.length > 0) {
-          selectedSpecs.value[s.name] = s.values[0];
-        }
-      });
-    }
+    product.value = res as Product;
   } catch (_) {
     product.value = getDemoProduct(id.value) as any;
-    if (product.value?.specs) {
-      product.value.specs.forEach((s: Spec) => {
-        if (s.values.length > 0) {
-          selectedSpecs.value[s.name] = s.values[0];
-        }
-      });
-    }
   }
+  initSpecs();
 }
 
-const specText = computed(() => {
-  const vals = Object.values(selectedSpecs.value);
-  return vals.length ? vals.join(' / ') : '';
+function initSpecs() {
+  selectedSpecs.value = {};
+  product.value?.specs?.forEach((spec) => {
+    if (spec.values?.length) selectedSpecs.value[spec.name] = spec.values[0];
+  });
+}
+
+const gallery = computed(() => {
+  if (!product.value) return [];
+  return product.value.images?.length ? product.value.images : [product.value.coverImage];
 });
 
-const currentPrice = computed(() => {
-  return product.value?.price || 0;
-});
+const specText = computed(() => Object.values(selectedSpecs.value).filter(Boolean).join(' / '));
+const currentPrice = computed(() => Number(product.value?.price || 0).toFixed(2));
 
 function selectSpec(name: string, value: string) {
   selectedSpecs.value[name] = value;
@@ -86,7 +76,8 @@ function changeQuantity(delta: number) {
   quantity.value = Math.max(1, Math.min(99, quantity.value + delta));
 }
 
-function openSpecPanel() {
+function openSpecPanel(type: 'cart' | 'buy') {
+  actionType.value = type;
   showSpecPanel.value = true;
 }
 
@@ -94,290 +85,176 @@ function closeSpecPanel() {
   showSpecPanel.value = false;
 }
 
-async function addToCart() {
-  if (!product.value || cartLoading.value) return;
-  cartLoading.value = true;
+async function addToCart(thenGoCart = false) {
+  if (!product.value || loading.value) return;
+  loading.value = true;
   try {
     await api.cart.add({
       productId: product.value.id,
       quantity: quantity.value,
       spec: specText.value || undefined,
     });
-    uni.showToast({ title: '已加入购物车', icon: 'success' });
+    uni.showToast({ title: '已加入选品池', icon: 'success' });
     showSpecPanel.value = false;
-    quantity.value = 1;
-  } catch (_) {
-    uni.showToast({ title: '添加失败', icon: 'none' });
+    if (thenGoCart) {
+      setTimeout(() => uni.switchTab({ url: '/pages/cart/cart' }), 500);
+    }
+  } catch (err: any) {
+    uni.showToast({ title: err?.data?.message || '请先登录后再选品', icon: 'none' });
   } finally {
-    cartLoading.value = false;
+    loading.value = false;
   }
 }
 
-async function buyNow() {
-  if (!product.value) return;
-  // 先加购物车再跳转结算
-  if (product.value.specs && product.value.specs.length > 0) {
-    showSpecPanel.value = true;
-    return;
-  }
-  await api.cart.add({
-    productId: product.value.id,
-    quantity: 1,
-  });
-  uni.switchTab({ url: '/pages/cart/cart' });
+function handleCart() {
+  if (product.value?.specs?.length) openSpecPanel('cart');
+  else addToCart(false);
 }
 
-function shareProduct() {
-  if (!product.value) return;
-  api.share.record(product.value.id).catch(() => {});
-  uni.share({
-    provider: 'weixin',
-    scene: 'session',
-    type: 0,
-    title: product.value.shareTitle || product.value.name,
-    summary: product.value.shareDesc || '',
-    imageUrl: product.value.coverImage,
-    success: () => uni.showToast({ title: '分享成功 +10积分', icon: 'none' }),
-  });
+function handleBuy() {
+  if (product.value?.specs?.length) openSpecPanel('buy');
+  else addToCart(true);
 }
 
-function onSwiperChange(e: any) {
-  currentImageIndex.value = e.detail.current;
+function confirmSpec() {
+  addToCart(actionType.value === 'buy');
 }
 </script>
 
 <template>
   <view class="page" v-if="product">
-    <!-- 商品轮播 -->
-    <swiper
-      class="detail-swiper"
-      autoplay
-      circular
-      indicator-dots
-      indicator-color="rgba(255,255,255,0.4)"
-      indicator-active-color="#D4A574"
-      @change="onSwiperChange"
-    >
-      <swiper-item v-for="(img, i) in (product.images && product.images.length ? product.images : [product.coverImage])" :key="i">
+    <swiper class="detail-swiper" circular indicator-dots indicator-color="rgba(255,255,255,.45)" indicator-active-color="#7fb069">
+      <swiper-item v-for="(img, i) in gallery" :key="i">
         <image :src="img || productPlaceholder" class="swiper-img" mode="aspectFill" />
       </swiper-item>
     </swiper>
 
-    <!-- 基本信息 -->
     <view class="product-main">
       <view class="price-row">
-        <text class="price">¥{{ product.price }}</text>
+        <text class="price">¥{{ currentPrice }}</text>
         <text class="original" v-if="product.originalPrice">¥{{ product.originalPrice }}</text>
-        <text class="sales">已售 {{ product.sales || 0 }}</text>
+        <text class="stock">库存 {{ product.stock || 0 }}</text>
       </view>
       <text class="product-title">{{ product.name }}</text>
-      <text class="product-desc" v-if="product.description">{{ product.description }}</text>
-      <view class="tag-row" v-if="product.tags && product.tags.length">
-        <text class="tag" v-for="t in product.tags" :key="t">{{ t }}</text>
+      <text class="product-desc">{{ product.description }}</text>
+      <view class="tag-row" v-if="product.tags?.length">
+        <text class="tag" v-for="tag in product.tags" :key="tag">{{ tag }}</text>
       </view>
     </view>
 
     <view class="service-panel">
-      <view class="service-item" v-for="item in servicePoints" :key="item">
-        <text class="service-dot"></text>
-        <text class="service-text">{{ item }}</text>
-      </view>
+      <text>企业批采</text>
+      <text>LOGO定制</text>
+      <text>礼盒包装</text>
+      <text>专人选品</text>
     </view>
 
-    <view class="custom-panel">
-      <view>
-        <text class="custom-title">企业定制预留入口</text>
-        <text class="custom-desc">后续可接入报价单、定制需求表和客服咨询</text>
-      </view>
-      <text class="custom-action">咨询</text>
-    </view>
-
-    <!-- 规格选择入口 -->
-    <view class="spec-entry" @tap="openSpecPanel" v-if="product.specs && product.specs.length">
+    <view class="spec-entry" @tap="openSpecPanel('cart')" v-if="product.specs?.length">
       <text class="spec-label">已选</text>
       <text class="spec-value">{{ specText || '请选择规格' }}</text>
-      <text class="spec-arrow">&gt;</text>
+      <text class="spec-arrow">›</text>
     </view>
 
-    <!-- 商品详情（占位） -->
     <view class="detail-section">
       <view class="section-title">商品详情</view>
-      <rich-text class="detail-content" :nodes="product.description || '暂无详情描述'"></rich-text>
+      <text class="detail-content">{{ product.description || '暂无详情描述' }}</text>
     </view>
 
-    <!-- 底部操作栏 -->
     <view class="action-bar">
-      <view class="action-item" @tap="shareProduct">
-        <text>📤</text>
-        <text class="action-text">分享</text>
+      <view class="action-item" @tap="uni.switchTab({url:'/pages/index/index'})">
+        <text>首页</text>
       </view>
       <view class="action-item" @tap="uni.switchTab({url:'/pages/cart/cart'})">
-        <text>🛒</text>
-        <text class="action-text">购物车</text>
+        <text>选品池</text>
       </view>
-      <view class="cart-btn" @tap="addToCart">加入购物车</view>
-      <view class="buy-btn" @tap="buyNow">立即购买</view>
+      <view class="cart-btn" @tap="handleCart">加入选品池</view>
+      <view class="buy-btn" @tap="handleBuy">立即购买</view>
     </view>
 
-    <!-- 规格选择弹窗 -->
     <view class="spec-overlay" v-if="showSpecPanel" @tap="closeSpecPanel">
       <view class="spec-panel" @tap.stop>
         <view class="panel-header">
           <image :src="product.coverImage || productPlaceholder" class="panel-img" mode="aspectFill" />
-          <view class="panel-price-info">
+          <view class="panel-info">
             <text class="panel-price">¥{{ currentPrice }}</text>
-            <text class="panel-stock">库存 {{ product.stock }} 件</text>
+            <text class="panel-stock">库存 {{ product.stock || 0 }} 件</text>
           </view>
-          <text class="panel-close" @tap="closeSpecPanel">✕</text>
+          <text class="panel-close" @tap="closeSpecPanel">×</text>
         </view>
 
-        <view class="panel-body" v-if="product.specs">
-          <view class="spec-group" v-for="spec in product.specs" :key="spec.name">
-            <text class="spec-group-name">{{ spec.name }}</text>
-            <view class="spec-values">
-              <text
-                class="spec-value-btn"
-                :class="{ active: selectedSpecs[spec.name] === val }"
-                v-for="val in spec.values"
-                :key="val"
-                @tap="selectSpec(spec.name, val)"
-              >{{ val }}</text>
-            </view>
+        <view class="spec-group" v-for="spec in product.specs" :key="spec.name">
+          <text class="spec-group-name">{{ spec.name }}</text>
+          <view class="spec-values">
+            <text
+              class="spec-value-btn"
+              :class="{ active: selectedSpecs[spec.name] === val }"
+              v-for="val in spec.values"
+              :key="val"
+              @tap="selectSpec(spec.name, val)"
+            >{{ val }}</text>
           </view>
         </view>
 
-        <!-- 数量选择 -->
         <view class="quantity-row">
-          <text class="quantity-label">数量</text>
+          <text>数量</text>
           <view class="quantity-control">
-            <text class="qty-btn" @tap="changeQuantity(-1)">−</text>
+            <text class="qty-btn" @tap="changeQuantity(-1)">-</text>
             <text class="qty-num">{{ quantity }}</text>
             <text class="qty-btn" @tap="changeQuantity(1)">+</text>
           </view>
         </view>
 
-        <view class="panel-footer">
-          <view class="panel-cart-btn" @tap="addToCart">加入购物车</view>
+        <view class="panel-confirm" :class="{ disabled: loading }" @tap="confirmSpec">
+          {{ actionType === 'buy' ? '加入并去结算' : '加入选品池' }}
         </view>
       </view>
     </view>
   </view>
-
-  <!-- 加载中 -->
-  <view class="empty-page" v-else>
-    <text>加载中...</text>
-  </view>
 </template>
 
 <style scoped>
-.page { background: #f6f7f8; min-height: 100vh; }
-.detail-swiper { width: 100%; height: 750rpx; }
+.page { min-height: 100vh; background: #f6f7f4; padding-bottom: 128rpx; }
+.detail-swiper { height: 720rpx; background: #eef3ea; }
 .swiper-img { width: 100%; height: 100%; }
-
-.product-main { padding: 30rpx; background: #fff; }
-.price-row { display: flex; align-items: center; }
-.price { font-size: 44rpx; font-weight: 700; color: #b9824f; }
-.original { font-size: 26rpx; color: #ccc; text-decoration: line-through; margin-left: 16rpx; }
-.sales { font-size: 22rpx; color: #999; margin-left: auto; }
-.product-title { font-size: 32rpx; color: #333; font-weight: 500; margin-top: 16rpx; display: block; line-height: 1.5; }
-.product-desc { font-size: 26rpx; color: #999; margin-top: 12rpx; display: block; line-height: 1.6; }
-.tag-row { margin-top: 12rpx; display: flex; flex-wrap: wrap; gap: 8rpx; }
-.tag { background: #f7efe6; color: #8d633d; font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 6rpx; }
-
-.service-panel {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 16rpx 0;
-  padding: 20rpx 30rpx;
-  background: #fff;
-}
-.service-item {
-  width: 50%;
-  display: flex;
-  align-items: center;
-  line-height: 42rpx;
-}
-.service-dot {
-  width: 10rpx;
-  height: 10rpx;
-  margin-right: 12rpx;
-  border-radius: 50%;
-  background: #b9824f;
-}
-.service-text {
-  color: #6f6256;
-  font-size: 23rpx;
-}
-.custom-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 0 16rpx;
-  padding: 24rpx 30rpx;
-  background: #fff7ec;
-}
-.custom-title {
-  display: block;
-  color: #2f2924;
-  font-size: 27rpx;
-  font-weight: 650;
-}
-.custom-desc {
-  display: block;
-  margin-top: 8rpx;
-  color: #8a7a6a;
-  font-size: 22rpx;
-}
-.custom-action {
-  min-width: 96rpx;
-  height: 52rpx;
-  line-height: 52rpx;
-  text-align: center;
-  border-radius: 8rpx;
-  background: #8d633d;
-  color: #fff;
-  font-size: 24rpx;
-}
-
-/* 规格入口 */
-.spec-entry { margin: 16rpx 0; padding: 24rpx 30rpx; background: #fff; display: flex; align-items: center; }
-.spec-label { font-size: 26rpx; color: #666; margin-right: 16rpx; }
-.spec-value { flex: 1; font-size: 26rpx; color: #333; }
-.spec-arrow { font-size: 28rpx; color: #ccc; }
-
-/* 详情区 */
-.detail-section { margin: 16rpx 0 140rpx; padding: 30rpx; background: #fff; }
-.section-title { font-size: 28rpx; font-weight: 600; color: #333; margin-bottom: 20rpx; }
-.detail-content { font-size: 26rpx; color: #666; line-height: 1.8; }
-
-/* 底部操作栏 */
-.action-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; background: #fff; padding: 12rpx 24rpx; padding-bottom: calc(12rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f0f0f0; z-index: 100; }
-.action-item { display: flex; flex-direction: column; align-items: center; margin-right: 30rpx; font-size: 20rpx; color: #666; min-width: 80rpx; }
-.action-text { margin-top: 4rpx; }
-.cart-btn { flex: 1; background: #f6eee5; color: #8d633d; text-align: center; height: 80rpx; line-height: 80rpx; border-radius: 8rpx; font-size: 28rpx; margin-right: 16rpx; }
-.buy-btn { flex: 1; background: #8d633d; color: #fff; text-align: center; height: 80rpx; line-height: 80rpx; border-radius: 8rpx; font-size: 28rpx; }
-
-/* 规格弹窗 */
-.spec-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: flex-end; }
-.spec-panel { background: #fff; border-radius: 24rpx 24rpx 0 0; padding: 30rpx; width: 100%; max-height: 70vh; overflow-y: auto; }
-.panel-header { display: flex; align-items: center; margin-bottom: 30rpx; }
-.panel-img { width: 160rpx; height: 160rpx; border-radius: 16rpx; }
-.panel-price-info { flex: 1; margin-left: 20rpx; }
-.panel-price { font-size: 36rpx; font-weight: 600; color: #b9824f; display: block; }
-.panel-stock { font-size: 22rpx; color: #999; margin-top: 8rpx; display: block; }
-.panel-close { font-size: 36rpx; color: #999; padding: 10rpx; }
-.spec-group { margin-bottom: 24rpx; }
-.spec-group-name { font-size: 26rpx; color: #333; font-weight: 500; display: block; margin-bottom: 12rpx; }
-.spec-values { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.spec-value-btn { padding: 12rpx 28rpx; border: 1rpx solid #e0e0e0; border-radius: 8rpx; font-size: 24rpx; color: #333; }
-.spec-value-btn.active { border-color: #8d633d; color: #8d633d; background: #FDF6EF; }
-.quantity-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30rpx; }
-.quantity-label { font-size: 26rpx; color: #333; }
-.quantity-control { display: flex; align-items: center; }
-.qty-btn { width: 56rpx; height: 56rpx; line-height: 56rpx; text-align: center; border: 1rpx solid #e0e0e0; font-size: 32rpx; color: #333; }
-.qty-num { width: 80rpx; text-align: center; font-size: 28rpx; border-top: 1rpx solid #e0e0e0; border-bottom: 1rpx solid #e0e0e0; height: 56rpx; line-height: 56rpx; }
-.panel-footer {}
-.panel-cart-btn { background: #8d633d; color: #fff; text-align: center; height: 88rpx; line-height: 88rpx; border-radius: 8rpx; font-size: 30rpx; }
-
-.empty-page { display: flex; justify-content: center; padding: 200rpx 0; color: #999; }
+.product-main { margin: 20rpx; padding: 26rpx; background: #fff; border-radius: 20rpx; }
+.price-row { display: flex; align-items: baseline; gap: 16rpx; }
+.price { color: #d9553f; font-size: 44rpx; font-weight: 800; }
+.original { color: #aaa; font-size: 24rpx; text-decoration: line-through; }
+.stock { margin-left: auto; color: #8c9288; font-size: 24rpx; }
+.product-title { display: block; margin-top: 14rpx; color: #20251f; font-size: 34rpx; font-weight: 700; line-height: 1.45; }
+.product-desc { display: block; margin-top: 12rpx; color: #6f766c; font-size: 26rpx; line-height: 1.6; white-space: pre-wrap; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 18rpx; }
+.tag { padding: 6rpx 14rpx; background: #edf7e8; color: #5f9d46; border-radius: 999rpx; font-size: 22rpx; }
+.service-panel { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 20rpx 20rpx; padding: 22rpx 10rpx; background: #fff; border-radius: 18rpx; text-align: center; color: #66715f; font-size: 24rpx; }
+.spec-entry, .detail-section { margin: 0 20rpx 20rpx; padding: 26rpx; background: #fff; border-radius: 18rpx; }
+.spec-entry { display: flex; align-items: center; gap: 16rpx; }
+.spec-label { color: #8c9288; }
+.spec-value { flex: 1; color: #20251f; }
+.spec-arrow { font-size: 44rpx; color: #b8bdb2; }
+.section-title { font-size: 30rpx; color: #20251f; font-weight: 700; margin-bottom: 14rpx; }
+.detail-content { display: block; color: #697066; font-size: 26rpx; line-height: 1.7; white-space: pre-wrap; }
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8rpx 28rpx rgba(0,0,0,.06); z-index: 20; }
+.action-item { width: 96rpx; text-align: center; color: #6f766c; font-size: 22rpx; }
+.cart-btn, .buy-btn { flex: 1; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 999rpx; font-size: 28rpx; font-weight: 700; }
+.cart-btn { background: #edf7e8; color: #5f9d46; }
+.buy-btn { background: linear-gradient(135deg, #8dc76f, #5f9d46); color: #fff; }
+.spec-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 30; display: flex; align-items: flex-end; }
+.spec-panel { width: 100%; background: #fff; border-radius: 28rpx 28rpx 0 0; padding: 28rpx; padding-bottom: calc(28rpx + env(safe-area-inset-bottom)); }
+.panel-header { display: flex; align-items: center; gap: 18rpx; margin-bottom: 24rpx; }
+.panel-img { width: 140rpx; height: 140rpx; border-radius: 16rpx; background: #f5f5f5; }
+.panel-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
+.panel-price { color: #d9553f; font-size: 36rpx; font-weight: 800; }
+.panel-stock { color: #8c9288; font-size: 24rpx; }
+.panel-close { width: 52rpx; height: 52rpx; line-height: 52rpx; text-align: center; color: #8c9288; font-size: 42rpx; }
+.spec-group { margin-top: 22rpx; }
+.spec-group-name { display: block; color: #20251f; font-size: 26rpx; font-weight: 700; margin-bottom: 14rpx; }
+.spec-values { display: flex; flex-wrap: wrap; gap: 14rpx; }
+.spec-value-btn { padding: 14rpx 22rpx; border-radius: 999rpx; background: #f4f5f1; color: #596052; font-size: 24rpx; }
+.spec-value-btn.active { background: #edf7e8; color: #5f9d46; font-weight: 700; }
+.quantity-row { display: flex; justify-content: space-between; align-items: center; margin-top: 28rpx; color: #20251f; font-size: 26rpx; }
+.quantity-control { display: flex; align-items: center; border: 1rpx solid #e1e5dc; border-radius: 999rpx; overflow: hidden; }
+.qty-btn, .qty-num { width: 64rpx; height: 56rpx; line-height: 56rpx; text-align: center; }
+.qty-num { width: 72rpx; background: #fafbf8; }
+.panel-confirm { margin-top: 30rpx; height: 82rpx; line-height: 82rpx; text-align: center; border-radius: 999rpx; background: #5f9d46; color: #fff; font-size: 30rpx; font-weight: 800; }
+.panel-confirm.disabled { opacity: .65; }
 </style>

@@ -1,5 +1,5 @@
 const BASE_URL = 'https://api.da-fire.com';
-const REQUEST_TIMEOUT = 2500;
+const REQUEST_TIMEOUT = 10000;
 const OFFLINE_PREVIEW = false;
 
 function request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, data?: any) {
