@@ -2,6 +2,23 @@ const BASE_URL = 'https://api.da-fire.com';
 const REQUEST_TIMEOUT = 10000;
 const OFFLINE_PREVIEW = false;
 
+function normalizeAssetUrl(value: any): any {
+  if (typeof value === 'string' && value.startsWith('/uploads/')) {
+    return BASE_URL + value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeAssetUrl);
+  }
+  if (value && typeof value === 'object') {
+    const next: any = {};
+    Object.keys(value).forEach((key) => {
+      next[key] = normalizeAssetUrl(value[key]);
+    });
+    return next;
+  }
+  return value;
+}
+
 function request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, data?: any) {
   return new Promise<any>((resolve, reject) => {
     if (OFFLINE_PREVIEW) {
@@ -17,7 +34,7 @@ function request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, data?: 
       header: getHeader(),
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data);
+          resolve(normalizeAssetUrl(res.data));
           return;
         }
         reject(res);
