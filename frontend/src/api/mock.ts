@@ -14,16 +14,16 @@ export const demoCategories = [
 ];
 
 export const demoQuickEntries = [
-  { name: '新品上市', keyword: '新品', icon: '新' },
-  { name: '本周更新', keyword: '更新', icon: '更' },
-  { name: '商务文创', keyword: '商务', icon: '文' },
-  { name: '茶具厨具', keyword: '茶具', icon: '茶' },
-  { name: '独家包销', keyword: '包销', icon: '包' },
-  { name: '京东自营', keyword: '自营', icon: '京' },
-  { name: '促销赠品', keyword: '促销', icon: '促' },
-  { name: '专享特惠', keyword: '特惠', icon: '惠' },
-  { name: '知名品牌', keyword: '品牌', icon: '牌' },
-  { name: '一件代发', keyword: '代发', icon: '发' },
+  { name: '新品上市', keyword: '新品', icon: '新', image: '/static/products/zk-03.jpg' },
+  { name: '本周更新', keyword: '更新', icon: '更', image: '/static/products/zk-08.jpg' },
+  { name: '商务文创', keyword: '商务', icon: '文', image: '/static/products/zk-07.jpg' },
+  { name: '茶具厨具', keyword: '茶具', icon: '茶', image: '/static/products/zk-05.jpg' },
+  { name: '独家包销', keyword: '包销', icon: '包', image: '/static/products/zk-06.jpg' },
+  { name: '京东自营', keyword: '自营', icon: '京', image: '/static/products/zk-01.jpg' },
+  { name: '促销赠品', keyword: '促销', icon: '促', image: '/static/products/zk-09.jpg' },
+  { name: '专享特惠', keyword: '特惠', icon: '惠', image: '/static/products/zk-02.jpg' },
+  { name: '知名品牌', keyword: '品牌', icon: '牌', image: '/static/products/zk-10.jpg' },
+  { name: '一件代发', keyword: '代发', icon: '发', image: '/static/products/zk-04.jpg' },
 ];
 
 export const demoProducts = [

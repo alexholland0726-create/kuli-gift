@@ -131,7 +131,9 @@ function priceLabel(price: number | string) {
         :key="entry.name"
         @tap="goLibrary(entry.keyword)"
       >
-        <view class="quick-icon">{{ entry.icon }}</view>
+        <view class="quick-icon">
+          <image class="quick-img" :src="entry.image" mode="aspectFill" />
+        </view>
         <text class="quick-name">{{ entry.name }}</text>
       </view>
       <view class="quick-dots">
@@ -314,13 +316,24 @@ function priceLabel(price: number | string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 84rpx;
-  height: 84rpx;
+  width: 92rpx;
+  height: 92rpx;
+  padding: 6rpx;
   color: #4f7d48;
   font-size: 28rpx;
   font-weight: 700;
-  background: #e9f6df;
+  background: linear-gradient(180deg, #eef9e7 0%, #ffffff 100%);
+  border: 2rpx solid #e3f0d9;
   border-radius: 50%;
+  box-shadow: 0 6rpx 16rpx rgba(94, 139, 74, .12);
+  box-sizing: border-box;
+}
+
+.quick-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #f4f8f1;
 }
 
 .quick-name {
