@@ -141,6 +141,31 @@ function priceLabel(price: number | string) {
       </view>
     </view>
 
+    <view class="section product-section">
+      <view class="section-head">
+        <view>
+          <text class="section-title">首页主推产品</text>
+          <text class="section-sub">{{ isDemoMode ? '当前为演示商品，上传后自动替换' : '来自产品池的主推商品' }}</text>
+        </view>
+        <text class="section-more" @tap="goLibrary()">礼品库</text>
+      </view>
+      <view class="product-grid">
+        <view class="product-card" v-for="item in featuredProducts" :key="item.id" @tap="goProductDetail(item.id)">
+          <image class="product-img" :src="item.coverImage || productPlaceholder" mode="aspectFill" />
+          <view class="product-info">
+            <view class="tag-line">
+              <text class="tag" v-for="tag in (item.tags || []).slice(0, 2)" :key="tag">{{ tag }}</text>
+            </view>
+            <text class="product-name">{{ item.name }}</text>
+            <view class="price-row">
+              <text class="price">{{ priceLabel(item.price) }}</text>
+              <text class="add-btn">+</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <view class="scene-grid">
       <view
         class="scene-card"
@@ -171,30 +196,7 @@ function priceLabel(price: number | string) {
       </view>
     </view>
 
-    <view class="section product-section">
-      <view class="section-head">
-        <view>
-          <text class="section-title">首页主推产品</text>
-          <text class="section-sub">{{ isDemoMode ? '当前为演示商品，上传后自动替换' : '来自产品池的主推商品' }}</text>
-        </view>
-        <text class="section-more" @tap="goLibrary()">礼品库</text>
-      </view>
-      <view class="product-grid">
-        <view class="product-card" v-for="item in featuredProducts" :key="item.id" @tap="goProductDetail(item.id)">
-          <image class="product-img" :src="item.coverImage || productPlaceholder" mode="aspectFill" />
-          <view class="product-info">
-            <view class="tag-line">
-              <text class="tag" v-for="tag in (item.tags || []).slice(0, 2)" :key="tag">{{ tag }}</text>
-            </view>
-            <text class="product-name">{{ item.name }}</text>
-            <view class="price-row">
-              <text class="price">{{ priceLabel(item.price) }}</text>
-              <text class="add-btn">+</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
+
   </view>
 </template>
 
