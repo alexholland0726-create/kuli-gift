@@ -100,6 +100,11 @@ function goProductDetail(id: number) {
 function closeAnnouncement() {
   announcementVisible.value = false;
 }
+
+function priceLabel(price: number | string) {
+  const value = Number(price || 0);
+  return value > 0 ? `￥${value.toFixed(2)}` : '询价';
+}
 </script>
 
 <template>
@@ -183,7 +188,7 @@ function closeAnnouncement() {
             </view>
             <text class="product-name">{{ item.name }}</text>
             <view class="price-row">
-              <text class="price">￥{{ item.price }}</text>
+              <text class="price">{{ priceLabel(item.price) }}</text>
               <text class="add-btn">+</text>
             </view>
           </view>

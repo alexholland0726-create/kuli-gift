@@ -58,6 +58,11 @@ function goDetail(id: number) {
 function changeSort(sort: string) {
   activeSort.value = sort;
 }
+
+function priceLabel(price: number | string) {
+  const value = Number(price || 0);
+  return value > 0 ? `￥${value.toFixed(2)}` : '询价';
+}
 </script>
 
 <template>
@@ -97,7 +102,7 @@ function changeSort(sort: string) {
           </view>
           <text class="product-name">{{ item.name }}</text>
           <view class="card-bottom">
-            <text class="price">￥{{ item.price }}</text>
+            <text class="price">{{ priceLabel(item.price) }}</text>
             <text class="plus">+</text>
           </view>
         </view>

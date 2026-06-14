@@ -106,6 +106,11 @@ function goDetail(id: number) {
   uni.navigateTo({ url: `/pages/product/detail?id=${id}` });
 }
 
+function priceLabel(price: number | string) {
+  const value = Number(price || 0);
+  return value > 0 ? `￥${value.toFixed(2)}` : '询价';
+}
+
 function doSearch() {
   loadProducts(true);
 }
@@ -162,7 +167,7 @@ function changeSort(value: string) {
           </view>
           <text class="product-name">{{ item.name }}</text>
           <view class="price-row">
-            <text class="price">￥{{ item.price }}</text>
+            <text class="price">{{ priceLabel(item.price) }}</text>
             <text class="original" v-if="item.originalPrice">￥{{ item.originalPrice }}</text>
           </view>
           <view class="meta-row">

@@ -75,6 +75,8 @@ const gallery = computed(() => {
 
 const specText = computed(() => Object.values(selectedSpecs.value).filter(Boolean).join(' / '));
 const currentPrice = computed(() => Number(product.value?.price || 0).toFixed(2));
+const isInquiryProduct = computed(() => Number(product.value?.price || 0) <= 0);
+const priceText = computed(() => isInquiryProduct.value ? '询价' : `¥${currentPrice.value}`);
 
 function selectSpec(name: string, value: string) {
   selectedSpecs.value[name] = value;
@@ -120,12 +122,18 @@ function handleCart() {
 }
 
 function handleBuy() {
+  if (isInquiryProduct.value) {
+    uni.showToast({ title: '该商品待报价，先加入选品池', icon: 'none' });
+    if (product.value?.specs?.length) openSpecPanel('cart');
+    else addToCart(false);
+    return;
+  }
   if (product.value?.specs?.length) openSpecPanel('buy');
   else addToCart(true);
 }
 
 function confirmSpec() {
-  addToCart(actionType.value === 'buy');
+  addToCart(actionType.value === 'buy' && !isInquiryProduct.value);
 }
 
 onShareAppMessage(() => {
@@ -157,7 +165,7 @@ onShareTimeline(() => {
 
     <view class="product-main">
       <view class="price-row">
-        <text class="price">¥{{ currentPrice }}</text>
+        <text class="price">{{ priceText }}</text>
         <text class="original" v-if="product.originalPrice">¥{{ product.originalPrice }}</text>
         <text class="stock">库存 {{ product.stock || 0 }}</text>
       </view>
@@ -194,7 +202,7 @@ onShareTimeline(() => {
         <text>选品池</text>
       </view>
       <view class="cart-btn" @tap="handleCart">加入选品池</view>
-      <view class="buy-btn" @tap="handleBuy">立即购买</view>
+      <view class="buy-btn" @tap="handleBuy">{{ isInquiryProduct ? '加入询价' : '立即购买' }}</view>
     </view>
 
     <view class="spec-overlay" v-if="showSpecPanel" @tap="closeSpecPanel">
@@ -202,7 +210,7 @@ onShareTimeline(() => {
         <view class="panel-header">
           <image :src="product.coverImage || productPlaceholder" class="panel-img" mode="aspectFill" />
           <view class="panel-info">
-            <text class="panel-price">¥{{ currentPrice }}</text>
+            <text class="panel-price">{{ priceText }}</text>
             <text class="panel-stock">库存 {{ product.stock || 0 }} 件</text>
           </view>
           <text class="panel-close" @tap="closeSpecPanel">×</text>
@@ -231,7 +239,7 @@ onShareTimeline(() => {
         </view>
 
         <view class="panel-confirm" :class="{ disabled: loading }" @tap="confirmSpec">
-          {{ actionType === 'buy' ? '加入并去结算' : '加入选品池' }}
+          {{ actionType === 'buy' && !isInquiryProduct ? '加入并去结算' : '加入选品池' }}
         </view>
       </view>
     </view>
