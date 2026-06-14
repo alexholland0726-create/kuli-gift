@@ -25,7 +25,7 @@ const featuredProducts = ref<Product[]>(demoProducts);
 const announcementVisible = ref(true);
 const isDemoMode = ref(true);
 
-const heroImg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="702" height="300" viewBox="0 0 702 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%238ed8bd"/><stop offset="0.58" stop-color="%23d8f4dc"/><stop offset="1" stop-color="%23fff7d6"/></linearGradient></defs><rect width="702" height="300" rx="28" fill="url(%23g)"/><circle cx="580" cy="64" r="82" fill="%23fff" opacity=".35"/><circle cx="96" cy="248" r="130" fill="%23fff" opacity=".28"/><text x="44" y="92" fill="%232f6b42" font-size="30" font-weight="700">企业礼品一站式选品</text><text x="44" y="154" fill="%231f3326" font-size="52" font-weight="800">酷礼工坊</text><text x="44" y="206" fill="%234d7058" font-size="26">主推产品 / 礼品库 / 选品池 / 定制方案</text><rect x="490" y="150" width="120" height="92" rx="18" fill="%23fff" opacity=".72"/><rect x="530" y="118" width="112" height="84" rx="18" fill="%23fff" opacity=".55"/></svg>';
+const heroImg = '/static/banners/home-hero.jpg';
 
 const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect fill="%23f6faf5" width="220" height="220"/><circle cx="110" cy="92" r="42" fill="%23d5ecd4"/><rect x="56" y="134" width="108" height="34" rx="17" fill="%239ac58f"/><text x="110" y="198" text-anchor="middle" fill="%23799a71" font-size="20">礼品图</text></svg>';
 
