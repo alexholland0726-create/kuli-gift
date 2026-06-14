@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onLoad, onReachBottom } from '@dcloudio/uni-app';
+import { onLoad, onReachBottom, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 import { demoProducts } from '@/api/mock';
 
@@ -33,10 +33,28 @@ const sortOptions = [
 const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="345" height="345" viewBox="0 0 345 345"><rect fill="%23f7faf4" width="345" height="345"/><circle cx="172" cy="138" r="58" fill="%23d7ebcf"/><rect x="108" y="214" width="128" height="36" rx="18" fill="%2393bf82"/><text x="172" y="302" text-anchor="middle" fill="%23799a71" font-size="24">礼品图</text></svg>';
 
 onLoad((opt: any) => {
+  enableShareMenu();
   if (opt.categoryId) categoryId.value = Number(opt.categoryId);
   if (opt.keyword) keyword.value = decodeURIComponent(opt.keyword);
   loadProducts(true);
 });
+
+function enableShareMenu() {
+  (uni as any).showShareMenu?.({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+  });
+}
+
+onShareAppMessage(() => ({
+  title: keyword.value ? `酷礼工坊｜${keyword.value}` : '酷礼工坊｜企业礼品精选',
+  path: `/pages/product/list?${categoryId.value ? `categoryId=${categoryId.value}` : ''}${keyword.value ? `&keyword=${encodeURIComponent(keyword.value)}` : ''}`,
+}));
+
+onShareTimeline(() => ({
+  title: keyword.value ? `酷礼工坊｜${keyword.value}` : '酷礼工坊｜企业礼品精选',
+  query: `${categoryId.value ? `categoryId=${categoryId.value}` : ''}${keyword.value ? `&keyword=${encodeURIComponent(keyword.value)}` : ''}`,
+}));
 
 async function loadProducts(reset = false) {
   if (loading.value) return;

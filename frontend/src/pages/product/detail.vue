@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 import { getDemoProduct } from '@/api/mock';
 
@@ -37,11 +37,19 @@ const actionType = ref<'cart' | 'buy'>('cart');
 const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="750" height="750" viewBox="0 0 750 750"><rect fill="%23f5f5f5" width="750" height="750"/><text x="375" y="385" text-anchor="middle" fill="%23aaa" font-size="28">暂无图片</text></svg>';
 
 onLoad((opt: any) => {
+  enableShareMenu();
   if (opt.id) {
     id.value = Number(opt.id);
     loadProduct();
   }
 });
+
+function enableShareMenu() {
+  (uni as any).showShareMenu?.({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+  });
+}
 
 async function loadProduct() {
   try {
@@ -119,6 +127,24 @@ function handleBuy() {
 function confirmSpec() {
   addToCart(actionType.value === 'buy');
 }
+
+onShareAppMessage(() => {
+  const item = product.value;
+  return {
+    title: item?.shareTitle || item?.name || '酷礼工坊商品推荐',
+    path: `/pages/product/detail?id=${id.value}`,
+    imageUrl: item?.coverImage || '',
+  };
+});
+
+onShareTimeline(() => {
+  const item = product.value;
+  return {
+    title: item?.shareTitle || item?.name || '酷礼工坊商品推荐',
+    query: `id=${id.value}`,
+    imageUrl: item?.coverImage || '',
+  };
+});
 </script>
 
 <template>

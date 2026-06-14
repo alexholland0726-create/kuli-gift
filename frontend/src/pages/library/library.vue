@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 import { demoProducts } from '@/api/mock';
 
@@ -12,8 +12,26 @@ const sorts = ['综合', '新品', '价格', '筛选'];
 const placeholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect width="220" height="220" rx="18" fill="%23f7faf4"/><circle cx="110" cy="86" r="40" fill="%23d7ebcf"/><rect x="58" y="134" width="104" height="30" rx="15" fill="%2393bf82"/></svg>';
 
 onShow(() => {
+  enableShareMenu();
   loadProducts();
 });
+
+function enableShareMenu() {
+  (uni as any).showShareMenu?.({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+  });
+}
+
+onShareAppMessage(() => ({
+  title: '酷礼工坊礼品库｜企业礼品自由选品',
+  path: '/pages/library/library',
+}));
+
+onShareTimeline(() => ({
+  title: '酷礼工坊礼品库｜企业礼品自由选品',
+  query: '',
+}));
 
 async function loadProducts() {
   if (loading.value) return;

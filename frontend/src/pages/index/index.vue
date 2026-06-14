@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
 import { demoCategories, demoProducts, demoQuickEntries } from '@/api/mock';
 
@@ -38,6 +39,8 @@ const scenes = [
 ];
 
 onMounted(async () => {
+  enableShareMenu();
+
   try {
     const catRes = await api.categories.list();
     const realCategories = Array.isArray(catRes) ? catRes.slice(0, 10) : [];
@@ -56,6 +59,23 @@ onMounted(async () => {
     }
   } catch (_) {}
 });
+
+function enableShareMenu() {
+  (uni as any).showShareMenu?.({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+  });
+}
+
+onShareAppMessage(() => ({
+  title: '酷礼工坊｜企业礼品一站式选品',
+  path: '/pages/index/index',
+}));
+
+onShareTimeline(() => ({
+  title: '酷礼工坊｜企业礼品一站式选品',
+  query: '',
+}));
 
 function goSearch() {
   uni.navigateTo({ url: '/pages/search/search' });
