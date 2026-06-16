@@ -42,6 +42,21 @@ export class Product {
   @Column({ type: 'simple-json', nullable: true })
   tags: string[];
 
+  @Column({ type: 'simple-json', nullable: true })
+  sellingPoints: string[];
+
+  @Column({ type: 'simple-json', nullable: true })
+  detailImages: string[];
+
+  @Column({ type: 'simple-json', nullable: true })
+  parameters: { label: string; value: string }[];
+
+  @Column({ type: 'simple-json', nullable: true })
+  scenes: string[];
+
+  @Column({ type: 'simple-json', nullable: true })
+  sourceLinks: { title: string; url: string; note?: string }[];
+
   @ManyToOne(() => Category, category => category.products, { eager: true })
   @JoinColumn({ name: 'categoryId' })
   category: Category;

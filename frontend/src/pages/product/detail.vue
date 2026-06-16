@@ -9,6 +9,17 @@ interface Spec {
   values: string[];
 }
 
+interface ProductParameter {
+  label: string;
+  value: string;
+}
+
+interface SourceLink {
+  title: string;
+  url: string;
+  note?: string;
+}
+
 interface Product {
   id: number;
   name: string;
@@ -21,6 +32,11 @@ interface Product {
   sales: number;
   specs: Spec[];
   tags: string[];
+  sellingPoints?: string[];
+  detailImages?: string[];
+  parameters?: ProductParameter[];
+  scenes?: string[];
+  sourceLinks?: SourceLink[];
   shareTitle?: string;
   shareDesc?: string;
   categoryId: number;
@@ -93,6 +109,7 @@ const categoryName = computed(() => {
 });
 const brandName = computed(() => product.value?.tags?.[0] || product.value?.name?.split(' ')[0] || '精选品牌');
 const sellingPoints = computed(() => {
+  if (product.value?.sellingPoints?.length) return product.value.sellingPoints;
   const category = categoryName.value;
   const brand = brandName.value;
   return [
@@ -108,12 +125,14 @@ const serviceItems = [
   { title: '专人选品', desc: '按预算推荐方案' },
 ];
 const detailRows = computed(() => [
+  ...(product.value?.parameters?.length ? product.value.parameters : []),
   { label: '品牌/系列', value: brandName.value },
   { label: '商品品类', value: categoryName.value },
   { label: '采购方式', value: isInquiryProduct.value ? '企业询价' : '现价购买 / 批量询价' },
   { label: '库存状态', value: `${product.value?.stock || 0} 件` },
-]);
+].filter((row, index, rows) => rows.findIndex((item) => item.label === row.label) === index));
 const sceneTags = computed(() => {
+  if (product.value?.scenes?.length) return product.value.scenes;
   const category = categoryName.value;
   if (category.includes('箱包')) return ['会议伴手礼', '员工入职', '商务出差', '客户答谢'];
   if (category.includes('数码') || category.includes('小电')) return ['员工福利', '健康关怀', '积分兑换', '活动奖品'];
@@ -122,6 +141,11 @@ const sceneTags = computed(() => {
   if (category.includes('家居')) return ['员工福利', '节日慰问', '家庭日用', '积分礼品'];
   return ['商务礼赠', '节庆福利', '客户答谢', '批量采购'];
 });
+const detailGallery = computed(() => {
+  const imgs = product.value?.detailImages?.length ? product.value.detailImages : gallery.value;
+  return imgs.filter(Boolean);
+});
+const sourceNotes = computed(() => product.value?.sourceLinks || []);
 
 function selectSpec(name: string, value: string) {
   selectedSpecs.value[name] = value;
@@ -278,12 +302,19 @@ onShareTimeline(() => {
         <text class="section-title">图文详情</text>
         <text class="section-subtitle">商品展示与采购说明</text>
       </view>
-      <view class="detail-hero">
-        <image :src="product.coverImage || productPlaceholder" class="detail-hero-img" mode="aspectFit" />
+      <view class="detail-hero" v-for="(img, index) in detailGallery" :key="`${img}-${index}`">
+        <image :src="img || productPlaceholder" class="detail-hero-img" mode="aspectFit" />
       </view>
       <text class="detail-content">{{ product.description || '暂无详情描述' }}</text>
       <view class="purchase-note">
         <text>可按预算、数量、交期和是否定制 LOGO 进一步确认方案。</text>
+      </view>
+      <view class="source-note" v-if="sourceNotes.length">
+        <view class="source-title">资料来源与型号核对</view>
+        <view class="source-row" v-for="source in sourceNotes" :key="source.url || source.title">
+          <text class="source-name">{{ source.title }}</text>
+          <text class="source-desc">{{ source.note || '已按同款型号整理' }}</text>
+        </view>
       </view>
     </view>
 
@@ -377,10 +408,15 @@ onShareTimeline(() => {
 .scene-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14rpx; }
 .scene-tag { height: 68rpx; line-height: 68rpx; text-align: center; border-radius: 14rpx; background: #fff8ea; color: #9a6b25; font-size: 25rpx; font-weight: 700; }
 .visual-section { padding-bottom: 32rpx; }
-.detail-hero { height: 460rpx; border-radius: 18rpx; background: linear-gradient(180deg, #f7faf3, #eef5e9); overflow: hidden; margin-bottom: 22rpx; }
+.detail-hero { min-height: 460rpx; border-radius: 18rpx; background: linear-gradient(180deg, #f7faf3, #eef5e9); overflow: hidden; margin-bottom: 22rpx; }
 .detail-hero-img { width: 100%; height: 100%; }
 .detail-content { display: block; color: #697066; font-size: 26rpx; line-height: 1.7; white-space: pre-wrap; }
 .purchase-note { margin-top: 22rpx; padding: 18rpx 20rpx; background: #edf7e8; border-radius: 14rpx; color: #5f7f4f; font-size: 24rpx; line-height: 1.5; }
+.source-note { margin-top: 22rpx; padding: 20rpx; border-radius: 14rpx; background: #f8faf5; }
+.source-title { color: #283323; font-size: 25rpx; font-weight: 800; margin-bottom: 12rpx; }
+.source-row { display: flex; flex-direction: column; gap: 4rpx; padding: 12rpx 0; border-top: 1rpx solid #e9eee3; }
+.source-name { color: #4f594b; font-size: 24rpx; font-weight: 700; }
+.source-desc { color: #8a9283; font-size: 22rpx; line-height: 1.45; }
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8rpx 28rpx rgba(0,0,0,.06); z-index: 20; }
 .action-item { width: 96rpx; text-align: center; color: #6f766c; font-size: 22rpx; }
 .cart-btn, .buy-btn { flex: 1; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 999rpx; font-size: 28rpx; font-weight: 700; }
