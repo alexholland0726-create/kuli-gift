@@ -8,6 +8,7 @@ interface Category {
   id: number;
   name: string;
   icon: string;
+  parentId?: number | null;
 }
 
 interface Product {
@@ -20,7 +21,8 @@ interface Product {
   tags: string[];
 }
 
-const categories = ref<Category[]>(demoCategories.slice(0, 10));
+const rootCategories = (items: Category[]) => items.filter((item) => item.parentId == null);
+const categories = ref<Category[]>(rootCategories(demoCategories).slice(0, 10));
 const featuredProducts = ref<Product[]>(demoProducts);
 const announcementVisible = ref(true);
 const isDemoMode = ref(true);
@@ -43,9 +45,9 @@ onMounted(async () => {
 
   try {
     const catRes = await api.categories.list();
-    const realCategories = Array.isArray(catRes) ? catRes.slice(0, 10) : [];
+    const realCategories = Array.isArray(catRes) ? catRes : [];
     if (realCategories.length) {
-      categories.value = realCategories;
+      categories.value = rootCategories(realCategories).slice(0, 10);
       isDemoMode.value = false;
     }
   } catch (_) {}
@@ -91,6 +93,10 @@ function goLibrary(keyword?: string) {
 
 function goCategory(id: number) {
   uni.navigateTo({ url: `/pages/product/list?categoryId=${id}` });
+}
+
+function goAllCategories() {
+  uni.switchTab({ url: '/pages/category/category' });
 }
 
 function goProductDetail(id: number) {
@@ -188,7 +194,7 @@ function priceLabel(price: number | string) {
           <text class="section-title">产品分类</text>
           <text class="section-sub">按品类快速筛选，适合批量上传产品</text>
         </view>
-        <text class="section-more" @tap="uni.switchTab({ url: '/pages/category/category' })">全部</text>
+        <text class="section-more" @tap="goAllCategories">全部</text>
       </view>
       <view class="category-grid">
         <view class="category-item" v-for="cat in categories" :key="cat.id" @tap="goCategory(cat.id)">

@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
-  UpdateDateColumn, OneToMany
+  UpdateDateColumn, OneToMany, ManyToOne, JoinColumn
 } from 'typeorm';
 import { Product } from '../../product/entities/product.entity';
 
@@ -20,6 +20,16 @@ export class Category {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @ManyToOne(() => Category, category => category.children, { nullable: true })
+  @JoinColumn({ name: 'parentId' })
+  parent: Category;
+
+  @Column({ nullable: true })
+  parentId: number;
+
+  @OneToMany(() => Category, category => category.parent)
+  children: Category[];
 
   @OneToMany(() => Product, product => product.category)
   products: Product[];

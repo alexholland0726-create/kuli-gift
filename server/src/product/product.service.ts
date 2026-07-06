@@ -1,13 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, In } from 'typeorm';
 import { Product } from './entities/product.entity';
+import { Category } from '../category/entities/category.entity';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectRepository(Product)
     private repo: Repository<Product>,
+    @InjectRepository(Category)
+    private categoryRepo: Repository<Category>,
   ) {}
 
   async findAll(query: { categoryId?: number; keyword?: string; recommended?: boolean; page?: number; limit?: number }): Promise<{ items: Product[]; total: number }> {
@@ -15,7 +18,12 @@ export class ProductService {
     const limit = query.limit || 20;
     const where: any = { isActive: true };
 
-    if (query.categoryId) where.categoryId = query.categoryId;
+    if (query.categoryId) {
+      const selectedCategoryId = Number(query.categoryId);
+      const children = await this.categoryRepo.find({ where: { parentId: selectedCategoryId } });
+      const categoryIds = [selectedCategoryId, ...children.map(category => category.id)];
+      where.categoryId = In(categoryIds);
+    }
     if (query.keyword) where.name = Like(`%${query.keyword}%`);
     if (query.recommended) where.isRecommended = true;
 

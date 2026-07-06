@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { onLoad, onReachBottom, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { demoProducts } from '@/api/mock';
+import { demoCategories, demoProducts } from '@/api/mock';
 
 interface Product {
   id: number;
@@ -37,6 +37,10 @@ onLoad((opt: any) => {
   if (opt.categoryId) categoryId.value = Number(opt.categoryId);
   if (opt.keyword) keyword.value = decodeURIComponent(opt.keyword);
   loadProducts(true);
+});
+
+onReachBottom(() => {
+  loadProducts();
 });
 
 function enableShareMenu() {
@@ -91,15 +95,16 @@ async function loadProducts(reset = false) {
 }
 
 function getDemoProducts(): Product[] {
+  const childIds = demoCategories
+    .filter((item) => item.parentId === categoryId.value)
+    .map((item) => item.id);
+  const categoryIds = categoryId.value ? [categoryId.value, ...childIds] : [];
+
   return demoProducts.filter((item) => {
-    const matchCategory = !categoryId.value || item.categoryId === categoryId.value;
+    const matchCategory = !categoryId.value || categoryIds.includes(item.categoryId);
     const matchKeyword = !keyword.value || item.name.includes(keyword.value) || item.description.includes(keyword.value);
     return matchCategory && matchKeyword;
   });
-}
-
-function onReachBottom() {
-  loadProducts();
 }
 
 function goDetail(id: number) {

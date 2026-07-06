@@ -7,16 +7,35 @@ interface Category {
   id: number;
   name: string;
   icon: string;
+  parentId?: number | null;
+  children?: Category[];
 }
 
 const categories = ref<Category[]>(demoCategories);
 const activeIndex = ref(0);
 const loading = ref(false);
 
-const currentProducts = computed(() => {
-  const current = categories.value[activeIndex.value];
+const displayCategories = computed(() => categories.value.filter((item) => item.parentId == null));
+
+const currentCategory = computed(() => displayCategories.value[activeIndex.value]);
+
+const childCategories = computed(() => {
+  const current = currentCategory.value;
   if (!current) return [];
-  return demoProducts.filter((item) => item.categoryId === current.id);
+  if (Array.isArray(current.children) && current.children.length) return current.children;
+  return categories.value.filter((item) => item.parentId === current.id);
+});
+
+const currentProducts = computed(() => {
+  const current = currentCategory.value;
+  if (!current) return [];
+  const ids = [current.id, ...childCategories.value.map((item) => item.id)];
+  return demoProducts.filter((item) => ids.includes(item.categoryId));
+});
+
+const displayProducts = computed(() => {
+  if (!childCategories.value.length) return currentProducts.value;
+  return currentProducts.value.slice(0, 6);
 });
 
 onMounted(async () => {
@@ -56,7 +75,7 @@ function goSearch() {
         <view
           class="nav-item"
           :class="{ active: activeIndex === i }"
-          v-for="(cat, i) in categories"
+          v-for="(cat, i) in displayCategories"
           :key="cat.id"
           @tap="selectCategory(i)"
         >
@@ -66,15 +85,24 @@ function goSearch() {
 
       <scroll-view class="right-panel" scroll-y>
         <view class="panel-head">
-          <text class="panel-title">{{ categories[activeIndex]?.name || '全部分类' }}</text>
-          <text class="panel-action" @tap="goProductList(categories[activeIndex]?.id)">查看商品</text>
+          <text class="panel-title">{{ currentCategory?.name || '全部分类' }}</text>
+          <text class="panel-action" @tap="goProductList(currentCategory?.id)">查看商品</text>
         </view>
 
         <view class="sub-grid">
           <view
             class="sub-item"
-            v-for="item in currentProducts"
-            :key="item.id"
+            v-for="item in childCategories"
+            :key="`category-${item.id}`"
+            @tap="goProductList(item.id)"
+          >
+            <view class="brand-category-icon">{{ item.name.slice(0, 1) }}</view>
+            <text class="sub-name">{{ item.name }}</text>
+          </view>
+          <view
+            class="sub-item"
+            v-for="item in displayProducts"
+            :key="`product-${item.id}`"
             @tap="goProductList(item.categoryId)"
           >
             <image
@@ -84,7 +112,7 @@ function goSearch() {
             />
             <text class="sub-name">{{ item.name.replace('礼盒', '').slice(0, 8) }}</text>
           </view>
-          <view class="sub-item empty-sub" v-if="!currentProducts.length">
+          <view class="sub-item empty-sub" v-if="!childCategories.length && !displayProducts.length">
             <text class="empty-text">暂无商品</text>
           </view>
         </view>
@@ -217,6 +245,20 @@ function goSearch() {
   width: 128rpx;
   height: 128rpx;
   background: #f4f7f2;
+  border-radius: 18rpx;
+}
+
+.brand-category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 128rpx;
+  height: 128rpx;
+  color: #2f6235;
+  font-size: 34rpx;
+  font-weight: 800;
+  background: #eaf6e2;
+  border: 2rpx solid #c9e2be;
   border-radius: 18rpx;
 }
 
