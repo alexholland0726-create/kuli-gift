@@ -205,6 +205,50 @@ function confirmSpec() {
   addToCart(actionType.value === 'buy' && !isInquiryProduct.value);
 }
 
+function previewMaterial(source: SourceLink) {
+  if (!source?.url) return;
+  uni.downloadFile({
+    url: source.url,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'pdf',
+          showMenu: true,
+        });
+        return;
+      }
+      uni.showToast({ title: '资料预览失败', icon: 'none' });
+    },
+    fail: () => uni.showToast({ title: '资料预览失败', icon: 'none' }),
+  });
+}
+
+function downloadMaterial(source: SourceLink) {
+  if (!source?.url) return;
+  uni.downloadFile({
+    url: source.url,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.saveFile({
+          tempFilePath: res.tempFilePath,
+          success: () => uni.showToast({ title: '资料已保存', icon: 'success' }),
+          fail: () => {
+            uni.openDocument({
+              filePath: res.tempFilePath,
+              fileType: 'pdf',
+              showMenu: true,
+            });
+          },
+        });
+        return;
+      }
+      uni.showToast({ title: '资料下载失败', icon: 'none' });
+    },
+    fail: () => uni.showToast({ title: '资料下载失败', icon: 'none' }),
+  });
+}
+
 onShareAppMessage(() => {
   const item = product.value;
   return {
@@ -312,8 +356,14 @@ onShareTimeline(() => {
       <view class="source-note" v-if="sourceNotes.length">
         <view class="source-title">资料来源与型号核对</view>
         <view class="source-row" v-for="source in sourceNotes" :key="source.url || source.title">
-          <text class="source-name">{{ source.title }}</text>
-          <text class="source-desc">{{ source.note || '已按同款型号整理' }}</text>
+          <view class="source-copy">
+            <text class="source-name">{{ source.title }}</text>
+            <text class="source-desc">{{ source.note || '已按同款型号整理' }}</text>
+          </view>
+          <view class="source-actions" v-if="source.url?.toLowerCase().includes('.pdf')">
+            <text class="source-btn" @tap="previewMaterial(source)">预览</text>
+            <text class="source-btn primary" @tap="downloadMaterial(source)">下载</text>
+          </view>
         </view>
       </view>
     </view>
@@ -414,9 +464,13 @@ onShareTimeline(() => {
 .purchase-note { margin-top: 22rpx; padding: 18rpx 20rpx; background: #edf7e8; border-radius: 14rpx; color: #5f7f4f; font-size: 24rpx; line-height: 1.5; }
 .source-note { margin-top: 22rpx; padding: 20rpx; border-radius: 14rpx; background: #f8faf5; }
 .source-title { color: #283323; font-size: 25rpx; font-weight: 800; margin-bottom: 12rpx; }
-.source-row { display: flex; flex-direction: column; gap: 4rpx; padding: 12rpx 0; border-top: 1rpx solid #e9eee3; }
+.source-row { display: flex; gap: 12rpx; align-items: center; padding: 12rpx 0; border-top: 1rpx solid #e9eee3; }
+.source-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4rpx; }
 .source-name { color: #4f594b; font-size: 24rpx; font-weight: 700; }
 .source-desc { color: #8a9283; font-size: 22rpx; line-height: 1.45; }
+.source-actions { display: flex; gap: 10rpx; }
+.source-btn { height: 48rpx; padding: 0 18rpx; color: #5f6b5b; font-size: 22rpx; line-height: 48rpx; background: #edf0e8; border-radius: 999rpx; }
+.source-btn.primary { color: #fff; background: #6fa458; }
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8rpx 28rpx rgba(0,0,0,.06); z-index: 20; }
 .action-item { width: 96rpx; text-align: center; color: #6f766c; font-size: 22rpx; }
 .cart-btn, .buy-btn { flex: 1; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 999rpx; font-size: 28rpx; font-weight: 700; }

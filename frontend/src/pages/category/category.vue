@@ -11,9 +11,22 @@ interface Category {
   children?: Category[];
 }
 
+interface SourceLink {
+  title: string;
+  url: string;
+  note?: string;
+}
+
+interface ProductMaterial {
+  brand: Category;
+  productCount: number;
+  materials: SourceLink[];
+}
+
 const categories = ref<Category[]>(demoCategories);
 const activeIndex = ref(0);
 const loading = ref(false);
+const brandMaterialMap = ref<Record<number, ProductMaterial>>({});
 
 const displayCategories = computed(() => categories.value.filter((item) => item.parentId == null));
 
@@ -44,10 +57,12 @@ onMounted(async () => {
     const realCategories = Array.isArray(res) ? res : [];
     if (realCategories.length) categories.value = realCategories;
   } catch (_) {}
+  loadBrandMaterials();
 });
 
 function selectCategory(index: number) {
   activeIndex.value = index;
+  loadBrandMaterials();
 }
 
 function goProductList(categoryId?: number) {
@@ -60,6 +75,79 @@ function goProductList(categoryId?: number) {
 
 function goSearch() {
   uni.navigateTo({ url: '/pages/search/search' });
+}
+
+async function loadBrandMaterials() {
+  const brands = childCategories.value;
+  if (!brands.length) {
+    brandMaterialMap.value = {};
+    return;
+  }
+
+  const next: Record<number, ProductMaterial> = {};
+  await Promise.all(brands.map(async (brand) => {
+    let products: any[] = demoProducts.filter((item) => item.categoryId === brand.id);
+    try {
+      const res = await api.products.list({ categoryId: brand.id, limit: 50 }) as any;
+      if (Array.isArray(res?.items)) products = res.items;
+    } catch (_) {}
+
+    const materials = products
+      .flatMap((product) => product.sourceLinks || [])
+      .filter((source: SourceLink) => source?.url && source.url.toLowerCase().includes('.pdf'));
+
+    next[brand.id] = {
+      brand,
+      productCount: products.length,
+      materials,
+    };
+  }));
+
+  brandMaterialMap.value = next;
+}
+
+function previewMaterial(source: SourceLink) {
+  if (!source?.url) return;
+  uni.downloadFile({
+    url: source.url,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.openDocument({
+          filePath: res.tempFilePath,
+          fileType: 'pdf',
+          showMenu: true,
+        });
+        return;
+      }
+      uni.showToast({ title: '资料预览失败', icon: 'none' });
+    },
+    fail: () => uni.showToast({ title: '资料预览失败', icon: 'none' }),
+  });
+}
+
+function downloadMaterial(source: SourceLink) {
+  if (!source?.url) return;
+  uni.downloadFile({
+    url: source.url,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.saveFile({
+          tempFilePath: res.tempFilePath,
+          success: () => uni.showToast({ title: '资料已保存', icon: 'success' }),
+          fail: () => {
+            uni.openDocument({
+              filePath: res.tempFilePath,
+              fileType: 'pdf',
+              showMenu: true,
+            });
+          },
+        });
+        return;
+      }
+      uni.showToast({ title: '资料下载失败', icon: 'none' });
+    },
+    fail: () => uni.showToast({ title: '资料下载失败', icon: 'none' }),
+  });
 }
 </script>
 
@@ -114,6 +202,52 @@ function goSearch() {
           </view>
           <view class="sub-item empty-sub" v-if="!childCategories.length && !displayProducts.length">
             <text class="empty-text">暂无商品</text>
+          </view>
+        </view>
+
+        <view class="material-panel" v-if="childCategories.length">
+          <view class="material-head">
+            <text class="material-title">产品资料</text>
+            <text class="material-subtitle">PDF 预览 / 下载</text>
+          </view>
+          <view
+            class="material-card"
+            v-for="brand in childCategories"
+            :key="`material-${brand.id}`"
+          >
+            <view class="material-brand-row">
+              <view class="material-brand-icon">{{ brand.name.slice(0, 1) }}</view>
+              <view class="material-brand-info">
+                <text class="material-brand-name">{{ brand.name }}</text>
+                <text class="material-brand-meta">
+                  {{ brandMaterialMap[brand.id]?.productCount || 0 }} 个产品 · {{ brandMaterialMap[brand.id]?.materials?.length || 0 }} 份资料
+                </text>
+              </view>
+              <text class="material-brand-action" @tap="goProductList(brand.id)">看产品</text>
+            </view>
+
+            <view class="material-list" v-if="brandMaterialMap[brand.id]?.materials?.length">
+              <view
+                class="material-row"
+                v-for="source in brandMaterialMap[brand.id].materials"
+                :key="source.url"
+              >
+                <view class="material-file">
+                  <text class="material-file-icon">PDF</text>
+                  <view class="material-file-copy">
+                    <text class="material-file-title">{{ source.title }}</text>
+                    <text class="material-file-note">{{ source.note || '原始产品资料' }}</text>
+                  </view>
+                </view>
+                <view class="material-actions">
+                  <text class="material-btn" @tap="previewMaterial(source)">预览</text>
+                  <text class="material-btn primary" @tap="downloadMaterial(source)">下载</text>
+                </view>
+              </view>
+            </view>
+            <view class="material-empty" v-else>
+              <text>暂无 PDF，上传原始资料后会显示在这里。</text>
+            </view>
           </view>
         </view>
 
@@ -289,6 +423,161 @@ function goSearch() {
   padding: 24rpx;
   background: #fff;
   border-radius: 18rpx;
+}
+
+.material-panel {
+  margin-top: 18rpx;
+}
+
+.material-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.material-title {
+  color: #273027;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.material-subtitle {
+  color: #8a9283;
+  font-size: 22rpx;
+}
+
+.material-card {
+  padding: 20rpx;
+  margin-bottom: 14rpx;
+  background: #fff;
+  border-radius: 18rpx;
+}
+
+.material-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.material-brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  color: #2f6235;
+  font-size: 24rpx;
+  font-weight: 800;
+  background: #eaf6e2;
+  border-radius: 16rpx;
+}
+
+.material-brand-info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.material-brand-name {
+  color: #273027;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.material-brand-meta {
+  color: #8a9283;
+  font-size: 21rpx;
+}
+
+.material-brand-action {
+  color: #6fa458;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.material-list {
+  margin-top: 16rpx;
+  border-top: 1rpx solid #edf0e8;
+}
+
+.material-row {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #edf0e8;
+}
+
+.material-file {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.material-file-icon {
+  width: 62rpx;
+  height: 42rpx;
+  color: #fff;
+  font-size: 19rpx;
+  font-weight: 800;
+  line-height: 42rpx;
+  text-align: center;
+  background: #d9553f;
+  border-radius: 8rpx;
+}
+
+.material-file-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.material-file-title {
+  overflow: hidden;
+  color: #333b30;
+  font-size: 23rpx;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.material-file-note {
+  color: #8a9283;
+  font-size: 20rpx;
+}
+
+.material-actions {
+  display: flex;
+  gap: 12rpx;
+  justify-content: flex-end;
+  margin-top: 12rpx;
+}
+
+.material-btn {
+  height: 48rpx;
+  padding: 0 18rpx;
+  color: #5f6b5b;
+  font-size: 22rpx;
+  line-height: 48rpx;
+  background: #f3f5f1;
+  border-radius: 999rpx;
+}
+
+.material-btn.primary {
+  color: #fff;
+  background: #6fa458;
+}
+
+.material-empty {
+  margin-top: 16rpx;
+  padding: 18rpx;
+  color: #8a9283;
+  font-size: 22rpx;
+  line-height: 1.5;
+  background: #f8faf5;
+  border-radius: 14rpx;
 }
 
 .tips-title {
