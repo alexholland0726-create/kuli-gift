@@ -23,6 +23,30 @@ interface ProductMaterial {
   materials: SourceLink[];
 }
 
+const BRAND_MATERIALS: Record<string, SourceLink[]> = {
+  '3M': [
+    {
+      title: '3M 个人安全防护产品目录 2025',
+      url: 'https://api.da-fire.com/uploads/materials/3m-personal-safety-catalog-2025.pdf',
+      note: '原始产品资料',
+    },
+  ],
+  '霍尼韦尔': [
+    {
+      title: '霍尼韦尔 PPE 综合样本',
+      url: 'https://api.da-fire.com/uploads/materials/honeywell-ppe-catalog.pdf',
+      note: '原始产品资料',
+    },
+  ],
+  'MSA': [
+    {
+      title: 'MSA 梅思安综合样本 Rev2024 CN',
+      url: 'https://api.da-fire.com/uploads/materials/msa-general-catalog-rev2024-cn.pdf',
+      note: '原始产品资料',
+    },
+  ],
+};
+
 const categories = ref<Category[]>(demoCategories);
 const activeIndex = ref(0);
 const loading = ref(false);
@@ -62,6 +86,17 @@ function uniquePdfMaterials(products: any[]): SourceLink[] {
       seen.add(key);
       return true;
     });
+}
+
+function mergeMaterials(...groups: SourceLink[][]): SourceLink[] {
+  const seen = new Set<string>();
+  return groups.flat().filter((source) => {
+    if (!source?.url) return false;
+    const key = source.url.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 onMounted(async () => {
@@ -105,7 +140,10 @@ async function loadBrandMaterials() {
       if (Array.isArray(res?.items)) products = res.items;
     } catch (_) {}
 
-    const materials = uniquePdfMaterials(products);
+    const materials = mergeMaterials(
+      uniquePdfMaterials(products),
+      BRAND_MATERIALS[brand.name] || [],
+    );
 
     next[brand.id] = {
       brand,
