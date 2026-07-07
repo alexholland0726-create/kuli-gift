@@ -51,6 +51,19 @@ const displayProducts = computed(() => {
   return currentProducts.value.slice(0, 6);
 });
 
+function uniquePdfMaterials(products: any[]): SourceLink[] {
+  const seen = new Set<string>();
+  return products
+    .flatMap((product) => product.sourceLinks || [])
+    .filter((source: SourceLink) => {
+      if (!source?.url || !source.url.toLowerCase().includes('.pdf')) return false;
+      const key = source.url.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 onMounted(async () => {
   try {
     const res = await api.categories.list();
@@ -92,9 +105,7 @@ async function loadBrandMaterials() {
       if (Array.isArray(res?.items)) products = res.items;
     } catch (_) {}
 
-    const materials = products
-      .flatMap((product) => product.sourceLinks || [])
-      .filter((source: SourceLink) => source?.url && source.url.toLowerCase().includes('.pdf'));
+    const materials = uniquePdfMaterials(products);
 
     next[brand.id] = {
       brand,
