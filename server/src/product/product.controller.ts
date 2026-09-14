@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { Product } from './entities/product.entity';
+import { ProductDto } from './product.dto';
 
 @Controller('api/products')
 export class ProductController {
@@ -19,16 +19,16 @@ export class ProductController {
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+    return this.service.findOne(id, true);
   }
 
   @Post()
-  create(@Body() data: Partial<Product>) {
+  create(@Body() data: ProductDto) {
     return this.service.create(data);
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() data: Partial<Product>) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() data: ProductDto) {
     return this.service.update(id, data);
   }
 

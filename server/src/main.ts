@@ -5,18 +5,19 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
-
+  const configService = app.get(ConfigService);
+  const allowedOrigins = configService.get<string>('CORS_ORIGINS', '')
+    .split(',').map(value => value.trim()).filter(Boolean);
   app.enableCors({
-    origin: '*',
+    origin: allowedOrigins.length ? allowedOrigins : false,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
+    credentials: false,
   });
 
   app.setGlobalPrefix('', { exclude: ['/'] });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
-  const configService = app.get(ConfigService);
   const port = configService.get('APP_PORT', 3001);
 
   await app.listen(port);

@@ -2,9 +2,8 @@
 import { ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { demoProducts } from '@/api/mock';
 
-const products = ref<any[]>(demoProducts);
+const products = ref<any[]>([]);
 const loading = ref(false);
 const activeSort = ref('综合');
 
@@ -39,9 +38,10 @@ async function loadProducts() {
   try {
     const res = await api.products.list({ limit: 60 });
     const items = (res as any)?.items || [];
-    products.value = items.length ? items : demoProducts;
+    products.value = items;
   } catch (_) {
-    products.value = demoProducts;
+    products.value = [];
+    uni.showToast({ title: '产品加载失败', icon: 'none' });
   } finally {
     loading.value = false;
   }

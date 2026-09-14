@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { demoCategories, demoProducts, demoQuickEntries } from '@/api/mock';
+import { demoQuickEntries } from '@/api/mock';
 
 interface Category {
   id: number;
@@ -22,10 +22,9 @@ interface Product {
 }
 
 const rootCategories = (items: Category[]) => items.filter((item) => item.parentId == null);
-const categories = ref<Category[]>(rootCategories(demoCategories).slice(0, 10));
-const featuredProducts = ref<Product[]>(demoProducts);
+const categories = ref<Category[]>([]);
+const featuredProducts = ref<Product[]>([]);
 const announcementVisible = ref(true);
-const isDemoMode = ref(true);
 
 const heroImg = '/static/banners/home-hero.jpg';
 
@@ -48,7 +47,6 @@ onMounted(async () => {
     const realCategories = Array.isArray(catRes) ? catRes : [];
     if (realCategories.length) {
       categories.value = rootCategories(realCategories).slice(0, 10);
-      isDemoMode.value = false;
     }
   } catch (_) {}
 
@@ -57,7 +55,6 @@ onMounted(async () => {
     const realProducts = (prodRes as any)?.items || [];
     if (realProducts.length) {
       featuredProducts.value = realProducts;
-      isDemoMode.value = false;
     }
   } catch (_) {}
 });
@@ -153,7 +150,7 @@ function priceLabel(price: number | string) {
       <view class="section-head">
         <view>
           <text class="section-title">首页主推产品</text>
-          <text class="section-sub">{{ isDemoMode ? '当前为演示商品，上传后自动替换' : '来自产品池的主推商品' }}</text>
+          <text class="section-sub">来自产品池的主推商品</text>
         </view>
         <text class="section-more" @tap="goLibrary()">礼品库</text>
       </view>

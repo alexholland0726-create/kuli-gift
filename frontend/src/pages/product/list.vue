@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import { onLoad, onReachBottom, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { demoCategories, demoProducts } from '@/api/mock';
 
 interface Product {
   id: number;
@@ -16,7 +15,7 @@ interface Product {
   categoryId: number;
 }
 
-const products = ref<Product[]>(demoProducts);
+const products = ref<Product[]>([]);
 const categoryId = ref(0);
 const keyword = ref('');
 const page = ref(1);
@@ -77,34 +76,20 @@ async function loadProducts(reset = false) {
 
     const res = await api.products.list(params) as any;
     let items: Product[] = res.items || [];
-    if (!items.length && page.value === 1) items = getDemoProducts();
-
     products.value = reset ? items : [...products.value, ...items];
     hasMore.value = items.length >= 18;
     page.value++;
   } catch (_) {
     if (page.value === 1) {
-      products.value = getDemoProducts();
+      products.value = [];
       hasMore.value = false;
+      uni.showToast({ title: '产品加载失败', icon: 'none' });
     } else {
       uni.showToast({ title: '加载失败', icon: 'none' });
     }
   } finally {
     loading.value = false;
   }
-}
-
-function getDemoProducts(): Product[] {
-  const childIds = demoCategories
-    .filter((item) => item.parentId === categoryId.value)
-    .map((item) => item.id);
-  const categoryIds = categoryId.value ? [categoryId.value, ...childIds] : [];
-
-  return demoProducts.filter((item) => {
-    const matchCategory = !categoryId.value || categoryIds.includes(item.categoryId);
-    const matchKeyword = !keyword.value || item.name.includes(keyword.value) || item.description.includes(keyword.value);
-    return matchCategory && matchKeyword;
-  });
 }
 
 function goDetail(id: number) {

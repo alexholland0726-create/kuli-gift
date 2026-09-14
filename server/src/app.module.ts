@@ -18,6 +18,7 @@ import { AddressModule } from './address/address.module';
 import { GrouponModule } from './groupon/groupon.module';
 import { PayModule } from './pay/pay.module';
 import { CartModule } from './cart/cart.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -52,6 +53,8 @@ import { CartModule } from './cart/cart.module';
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
+    ServeStaticModule.forRoot({ rootPath: join(__dirname, '..', 'admin'), serveRoot: '/admin' }),
+    StaffModule,
     ProductModule,
     CategoryModule,
     UserModule,

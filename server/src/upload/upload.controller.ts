@@ -1,48 +1,31 @@
 import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { mkdirSync } from 'fs';
-import { v4 as uuid } from 'uuid';
-
+import { memoryStorage } from 'multer';
+import { randomUUID } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
+export function fileExtension(buffer: Buffer): string | null {
+  if (buffer.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return '.png';
+  if (buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255) return '.jpg';
+  if (buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP') return '.webp';
+  if (['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString())) return '.gif';
+  if (buffer.subarray(0, 5).toString() === '%PDF-') return '.pdf';
+  return null;
+}
 @Controller('api/upload')
 export class UploadController {
   @Post()
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const isPdf = file.mimetype === 'application/pdf' || extname(file.originalname).toLowerCase() === '.pdf';
-          const destination = isPdf ? './uploads/materials' : './uploads';
-          mkdirSync(destination, { recursive: true });
-          cb(null, destination);
-        },
-        filename: (req, file, cb) => {
-          const name = uuid() + extname(file.originalname);
-          cb(null, name);
-        },
-      }),
-      limits: { fileSize: 50 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        const allowedImage = file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/);
-        const allowedPdf = file.mimetype === 'application/pdf' || ext === '.pdf';
-        if (!allowedImage && !allowedPdf) {
-          cb(new BadRequestException('仅支持图片或 PDF 资料上传'), false);
-          return;
-        }
-        cb(null, true);
-      },
-    }),
-  )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } }))
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('请选择文件');
-    const isPdf = file.mimetype === 'application/pdf' || extname(file.originalname).toLowerCase() === '.pdf';
-    return {
-      url: isPdf ? '/uploads/materials/' + file.filename : '/uploads/' + file.filename,
-      filename: file.originalname,
-      type: isPdf ? 'pdf' : 'image',
-      size: file.size,
-    };
+    const extension = fileExtension(file.buffer);
+    if (!extension) throw new BadRequestException('仅支持 JPG、PNG、WebP、GIF 图片和 PDF');
+    const type = extension === '.pdf' ? 'pdf' : 'image';
+    if (type === 'image' && file.size > 8 * 1024 * 1024) throw new BadRequestException('图片不能超过 8 MB');
+    const name = randomUUID() + extension;
+    const directory = join(__dirname, '..', '..', 'uploads', type === 'pdf' ? 'materials' : '');
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, name), file.buffer, { flag: 'wx' });
+    return { url: '/uploads/' + (type === 'pdf' ? 'materials/' : '') + name, filename: file.originalname, type, size: file.size };
   }
 }

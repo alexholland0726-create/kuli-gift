@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
 import { api } from '@/api/index';
-import { demoCategories, demoProducts } from '@/api/mock';
 
 interface Category {
   id: number;
@@ -47,7 +46,7 @@ const BRAND_MATERIALS: Record<string, SourceLink[]> = {
   ],
 };
 
-const categories = ref<Category[]>(demoCategories);
+const categories = ref<Category[]>([]);
 const activeIndex = ref(0);
 const loading = ref(false);
 const brandMaterialMap = ref<Record<number, ProductMaterial>>({});
@@ -63,11 +62,10 @@ const childCategories = computed(() => {
   return categories.value.filter((item) => item.parentId === current.id);
 });
 
-const currentProducts = computed(() => {
+const currentProducts = computed<any[]>(() => {
   const current = currentCategory.value;
   if (!current) return [];
-  const ids = [current.id, ...childCategories.value.map((item) => item.id)];
-  return demoProducts.filter((item) => ids.includes(item.categoryId));
+  return [];
 });
 
 const displayProducts = computed(() => {
@@ -134,7 +132,7 @@ async function loadBrandMaterials() {
 
   const next: Record<number, ProductMaterial> = {};
   await Promise.all(brands.map(async (brand) => {
-    let products: any[] = demoProducts.filter((item) => item.categoryId === brand.id);
+    let products: any[] = [];
     try {
       const res = await api.products.list({ categoryId: brand.id, limit: 50 }) as any;
       if (Array.isArray(res?.items)) products = res.items;

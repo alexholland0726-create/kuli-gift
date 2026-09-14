@@ -5,6 +5,7 @@
     { "path": "pages/library/library", "style": { "navigationBarTitleText": "礼品库" } },
     { "path": "pages/product/detail", "style": { "navigationBarTitleText": "商品详情" } },
     { "path": "pages/product/list", "style": { "navigationBarTitleText": "商品列表" } },
+    { "path": "pages/inquiry/inquiry", "style": { "navigationBarTitleText": "提交询价" } },
     { "path": "pages/search/search", "style": { "navigationBarTitleText": "搜索" } },
     { "path": "pages/cart/cart", "style": { "navigationBarTitleText": "选品池" } },
     { "path": "pages/user/user", "style": { "navigationBarTitleText": "我的" } },

@@ -102,7 +102,7 @@ async function submitOrder() {
 
 function requestPayment(params: any) {
   return new Promise<void>((resolve, reject) => {
-    uni.requestPayment({
+    (uni.requestPayment as any)({
       provider: 'wxpay',
       timeStamp: params.timeStamp,
       nonceStr: params.nonceStr,
@@ -110,7 +110,7 @@ function requestPayment(params: any) {
       signType: params.signType || 'RSA',
       paySign: params.paySign,
       success: () => resolve(),
-      fail: (err) => reject(err),
+      fail: (err: any) => reject(err),
     });
   });
 }

@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue';
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { getDemoProduct } from '@/api/mock';
 
 interface Spec {
   name: string;
@@ -72,7 +71,8 @@ async function loadProduct() {
     const res = await api.products.detail(id.value);
     product.value = res as Product;
   } catch (_) {
-    product.value = getDemoProduct(id.value) as any;
+    product.value = null;
+    uni.showToast({ title: '产品已下架或加载失败', icon: 'none' });
   }
   initSpecs();
 }
@@ -165,24 +165,9 @@ function closeSpecPanel() {
 }
 
 async function addToCart(thenGoCart = false) {
-  if (!product.value || loading.value) return;
-  loading.value = true;
-  try {
-    await api.cart.add({
-      productId: product.value.id,
-      quantity: quantity.value,
-      spec: specText.value || undefined,
-    });
-    uni.showToast({ title: '已加入选品池', icon: 'success' });
-    showSpecPanel.value = false;
-    if (thenGoCart) {
-      setTimeout(() => uni.switchTab({ url: '/pages/cart/cart' }), 500);
-    }
-  } catch (err: any) {
-    uni.showToast({ title: err?.data?.message || '请先登录后再选品', icon: 'none' });
-  } finally {
-    loading.value = false;
-  }
+  if (!product.value) return;
+  showSpecPanel.value = false;
+  uni.navigateTo({ url: `/pages/inquiry/inquiry?id=${product.value.id}&quantity=${quantity.value}` });
 }
 
 function handleCart() {
@@ -191,12 +176,6 @@ function handleCart() {
 }
 
 function handleBuy() {
-  if (isInquiryProduct.value) {
-    uni.showToast({ title: '该商品待报价，先加入选品池', icon: 'none' });
-    if (product.value?.specs?.length) openSpecPanel('cart');
-    else addToCart(false);
-    return;
-  }
   if (product.value?.specs?.length) openSpecPanel('buy');
   else addToCart(true);
 }
@@ -372,11 +351,11 @@ onShareTimeline(() => {
       <view class="action-item" @tap="uni.switchTab({url:'/pages/index/index'})">
         <text>首页</text>
       </view>
-      <view class="action-item" @tap="uni.switchTab({url:'/pages/cart/cart'})">
-        <text>选品池</text>
+      <view class="action-item">
+        <text>企业采购</text>
       </view>
-      <view class="cart-btn" @tap="handleCart">加入选品池</view>
-      <view class="buy-btn" @tap="handleBuy">{{ isInquiryProduct ? '加入询价' : '立即购买' }}</view>
+      <view class="cart-btn" @tap="handleCart">咨询详情</view>
+      <view class="buy-btn" @tap="handleBuy">立即询价</view>
     </view>
 
     <view class="spec-overlay" v-if="showSpecPanel" @tap="closeSpecPanel">
@@ -413,7 +392,7 @@ onShareTimeline(() => {
         </view>
 
         <view class="panel-confirm" :class="{ disabled: loading }" @tap="confirmSpec">
-          {{ actionType === 'buy' && !isInquiryProduct ? '加入并去结算' : '加入选品池' }}
+          提交询价
         </view>
       </view>
     </view>

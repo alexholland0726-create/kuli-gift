@@ -11,6 +11,9 @@ export const api = {
     list: (params?: any) => http.get('/api/products', params),
     detail: (id: number) => http.get(`/api/products/${id}`),
   },
+  inquiries: {
+    create: (data: any) => http.post('/api/inquiries', data),
+  },
   // 购物车
   cart: {
     list: () => http.get('/api/cart'),

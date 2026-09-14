@@ -1,0 +1,20 @@
+-- Back up the database before applying. Existing product data is unchanged.
+CREATE TABLE IF NOT EXISTS staff_accounts (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(80) NOT NULL,
+  passwordHash VARCHAR(256) NOT NULL,
+  role VARCHAR(16) NOT NULL DEFAULT 'editor',
+  active TINYINT NOT NULL DEFAULT 1,
+  sessionVersion INT NOT NULL DEFAULT 1,
+  createdAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS product_inquiries (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  contact VARCHAR(100) NOT NULL,
+  message TEXT NOT NULL,
+  products TEXT NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'new',
+  createdAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
