@@ -52,6 +52,8 @@ import { StaffModule } from './staff/staff.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
+      exclude: ['/uploads', '/uploads/{*path}'],
+      serveStaticOptions: { index: false },
     }),
     ServeStaticModule.forRoot({ rootPath: join(__dirname, '..', 'admin'), serveRoot: '/admin' }),
     StaffModule,

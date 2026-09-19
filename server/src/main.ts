@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { HttpAdapterHost } from '@nestjs/core';
+import { UploadsExceptionFilter } from './uploads-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
@@ -17,6 +19,7 @@ async function bootstrap() {
   app.setGlobalPrefix('', { exclude: ['/'] });
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+  app.useGlobalFilters(new UploadsExceptionFilter(app.get(HttpAdapterHost)));
 
   const port = configService.get('APP_PORT', 3001);
 

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { CategoryService } from './category.service';
-import { Category } from './entities/category.entity';
+import { CreateCategoryDto, UpdateCategoryDto } from './category.dto';
 
 @Controller('api/categories')
 export class CategoryController {
@@ -17,12 +17,12 @@ export class CategoryController {
   }
 
   @Post()
-  create(@Body() data: Partial<Category>) {
+  create(@Body() data: CreateCategoryDto) {
     return this.service.create(data);
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() data: Partial<Category>) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateCategoryDto) {
     return this.service.update(id, data);
   }
 
@@ -30,4 +30,12 @@ export class CategoryController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);
   }
+}
+
+@Controller('api/admin/categories')
+export class AdminCategoryController {
+  constructor(private service: CategoryService) {}
+
+  @Get()
+  findAll() { return this.service.findAll(true); }
 }

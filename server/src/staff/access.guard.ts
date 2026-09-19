@@ -10,7 +10,7 @@ export class AccessGuard implements CanActivate {
     const path = (req.path as string).replace(/\/+$/, '').toLowerCase();
     const method = req.method;
     if (method === 'OPTIONS') return true;
-    if ((path === '/api/admin/login' || path === '/api/inquiries') && method === 'POST') {
+    if (['/api/admin/login', '/api/auth/login', '/api/inquiries'].includes(path) && method === 'POST') {
       const now = Date.now();
       for (const [key, value] of this.windows) if (value.expires <= now) this.windows.delete(key);
       const key = path + ':' + req.ip;
@@ -19,12 +19,18 @@ export class AccessGuard implements CanActivate {
       this.windows.set(key, window);
       return true;
     }
+    // The controller's JWT guard checks identity; no other user/commerce route is opened.
+    if (path === '/api/auth/user' && ['GET', 'HEAD'].includes(method)) return true;
     const admin = path === '/api/admin' || path.startsWith('/api/admin/');
     const catalogWrite = !['GET', 'HEAD'].includes(method) && /^\/api\/(products|categories|upload)(\/|$)/.test(path);
     if (admin || catalogWrite) {
       const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
       if (!token) throw new UnauthorizedException('请登录管理后台');
       req.staff = await this.staff.authenticate(token);
+      if (req.staff.role !== 'owner' && /^\/api\/products\/\d+$/.test(path)
+        && method === 'PUT' && req.body?.isActive === false) {
+        throw new ForbiddenException('下架产品需要管理员权限');
+      }
       if ((path.startsWith('/api/admin/staff') || method === 'DELETE') && req.staff.role !== 'owner') throw new ForbiddenException('需要管理员权限');
       return true;
     }

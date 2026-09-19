@@ -39,6 +39,7 @@ interface Product {
   shareTitle?: string;
   shareDesc?: string;
   categoryId: number;
+  category?: { name: string };
 }
 
 const product = ref<Product | null>(null);
@@ -93,20 +94,7 @@ const specText = computed(() => Object.values(selectedSpecs.value).filter(Boolea
 const currentPrice = computed(() => Number(product.value?.price || 0).toFixed(2));
 const isInquiryProduct = computed(() => Number(product.value?.price || 0) <= 0);
 const priceText = computed(() => isInquiryProduct.value ? '询价' : `¥${currentPrice.value}`);
-const categoryName = computed(() => {
-  const map: Record<number, string> = {
-    1: '端午礼盒',
-    2: '食品礼盒',
-    3: '生鲜滋补',
-    4: '家居家纺',
-    5: '厨具餐具',
-    6: '商务箱包',
-    7: '数码小电',
-    8: '保温杯',
-    9: '运动户外',
-  };
-  return map[product.value?.categoryId || 0] || product.value?.tags?.[0] || '企业礼品';
-});
+const categoryName = computed(() => product.value?.category?.name || '企业礼品');
 const brandName = computed(() => product.value?.tags?.[0] || product.value?.name?.split(' ')[0] || '精选品牌');
 const sellingPoints = computed(() => {
   if (product.value?.sellingPoints?.length) return product.value.sellingPoints;
@@ -128,7 +116,7 @@ const detailRows = computed(() => [
   ...(product.value?.parameters?.length ? product.value.parameters : []),
   { label: '品牌/系列', value: brandName.value },
   { label: '商品品类', value: categoryName.value },
-  { label: '采购方式', value: isInquiryProduct.value ? '企业询价' : '现价购买 / 批量询价' },
+  { label: '采购方式', value: '企业询价，线下确认报价' },
   { label: '库存状态', value: `${product.value?.stock || 0} 件` },
 ].filter((row, index, rows) => rows.findIndex((item) => item.label === row.label) === index));
 const sceneTags = computed(() => {

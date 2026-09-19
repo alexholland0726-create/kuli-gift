@@ -27,7 +27,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async login(payload: LoginPayload, userInfo?: { nickname?: string; avatar?: string }): Promise<{ token: string; user: User }> {
+  async login(payload: LoginPayload, userInfo?: { nickname?: string; avatar?: string }) {
     const openid = await this.resolveOpenid(payload);
     let user = await this.userService.findByOpenid(openid);
     if (!user) {
@@ -37,25 +37,24 @@ export class AuthService {
         avatar: userInfo?.avatar || '',
       });
     }
-    const token = this.jwtService.sign({ id: user.id, openid: user.openid });
-    return { token, user };
+    if (!user.isActive) throw new UnauthorizedException('账号已停用');
+    const token = this.jwtService.sign({ id: user.id });
+    return { token, user: this.profile(user) };
   }
 
-  async getUser(id: number): Promise<User> {
-    return this.userService.findById(id);
+  async getUser(id: number) {
+    const user = await this.userService.findById(id);
+    if (!user?.isActive) throw new UnauthorizedException('请重新登录');
+    return this.profile(user);
+  }
+
+  private profile(user: User) {
+    return { id: user.id, nickname: user.nickname, avatar: user.avatar, phone: user.phone };
   }
 
   private async resolveOpenid(payload: LoginPayload): Promise<string> {
-    if (payload.openid && this.isDevMode()) {
-      return payload.openid;
-    }
-
     if (!payload.code) {
       throw new BadRequestException('微信登录 code 不能为空');
-    }
-
-    if (this.isDevMode() && payload.code.startsWith('mock_')) {
-      return payload.code;
     }
 
     return this.exchangeCodeForOpenid(payload.code);
@@ -69,17 +68,14 @@ export class AuthService {
     }
 
     const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${encodeURIComponent(appid)}&secret=${encodeURIComponent(secret)}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     const data = await response.json() as WechatSession;
 
     if (!response.ok || !data.openid) {
-      throw new UnauthorizedException(data.errmsg || '微信登录失败');
+      throw new UnauthorizedException('微信登录失败，请重试');
     }
 
     return data.openid;
   }
 
-  private isDevMode(): boolean {
-    return this.configService.get('NODE_ENV') !== 'production';
-  }
 }

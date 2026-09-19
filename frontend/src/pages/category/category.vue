@@ -62,11 +62,21 @@ const childCategories = computed(() => {
   return categories.value.filter((item) => item.parentId === current.id);
 });
 
-const currentProducts = computed<any[]>(() => {
-  const current = currentCategory.value;
-  if (!current) return [];
-  return [];
-});
+const currentProducts = ref<any[]>([]);
+const productError = ref(false);
+let productRequest = 0;
+async function loadCategoryProducts() {
+  const request = ++productRequest;
+  currentProducts.value = [];
+  productError.value = false;
+  if (!currentCategory.value) return;
+  loading.value = true;
+  try {
+    const result = await api.products.list({ categoryId: currentCategory.value.id, limit: 30 });
+    if (request === productRequest) currentProducts.value = result.items || [];
+  } catch { if (request === productRequest) productError.value = true; }
+  finally { if (request === productRequest) loading.value = false; }
+}
 
 const displayProducts = computed(() => {
   if (!childCategories.value.length) return currentProducts.value;
@@ -104,11 +114,13 @@ onMounted(async () => {
     if (realCategories.length) categories.value = realCategories;
   } catch (_) {}
   loadBrandMaterials();
+  loadCategoryProducts();
 });
 
 function selectCategory(index: number) {
   activeIndex.value = index;
   loadBrandMaterials();
+  loadCategoryProducts();
 }
 
 function goProductList(categoryId?: number) {
@@ -238,7 +250,7 @@ function downloadMaterial(source: SourceLink) {
             class="sub-item"
             v-for="item in displayProducts"
             :key="`product-${item.id}`"
-            @tap="goProductList(item.categoryId)"
+            @tap="uni.navigateTo({ url: '/pages/product/detail?id=' + item.id })"
           >
             <image
               class="sub-img"
@@ -248,7 +260,7 @@ function downloadMaterial(source: SourceLink) {
             <text class="sub-name">{{ item.name.replace('礼盒', '').slice(0, 8) }}</text>
           </view>
           <view class="sub-item empty-sub" v-if="!childCategories.length && !displayProducts.length">
-            <text class="empty-text">暂无商品</text>
+            <text class="empty-text" @tap="loadCategoryProducts">{{ loading ? '加载中…' : productError ? '加载失败，点击重试' : '暂无商品' }}</text>
           </view>
         </view>
 

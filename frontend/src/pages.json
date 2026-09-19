@@ -51,12 +51,6 @@
         "selectedIconPath": "static/tab/category-active.png"
       },
       {
-        "pagePath": "pages/cart/cart",
-        "text": "选品池",
-        "iconPath": "static/tab/cart.png",
-        "selectedIconPath": "static/tab/cart-active.png"
-      },
-      {
         "pagePath": "pages/user/user",
         "text": "我的",
         "iconPath": "static/tab/user.png",

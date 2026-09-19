@@ -2,272 +2,86 @@
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { demoUser } from '@/api/mock';
-
-const userInfo = ref<any>(demoUser);
+const userInfo = ref<any>(null);
 const loginLoading = ref(false);
-
+const notice = ref('');
+let refreshSequence = 0;
 onShow(async () => {
-  const token = uni.getStorageSync('token');
-  if (!token) {
-    userInfo.value = demoUser;
-    return;
-  }
-
+  const sequence = ++refreshSequence;
+  if (!uni.getStorageSync('token')) { userInfo.value = null; uni.removeStorageSync('userInfo'); return; }
+  userInfo.value = uni.getStorageSync('userInfo') || null;
   try {
-    const res = await api.user.info();
-    userInfo.value = res || demoUser;
-  } catch (_) {
-    userInfo.value = demoUser;
+    const user = await api.user.info();
+    if (sequence !== refreshSequence) return;
+    userInfo.value = user;
+    uni.setStorageSync('userInfo', user);
+    notice.value = '';
+  } catch (error: any) {
+    if (sequence !== refreshSequence) return;
+    if (error?.statusCode === 401) { logout(); notice.value = '登录已过期，请重新登录'; }
+    else notice.value = '资料暂时未刷新，请稍后重试；仍可浏览和询价';
   }
 });
-
 function login() {
   if (loginLoading.value) return;
+  ++refreshSequence;
   loginLoading.value = true;
+  notice.value = '';
   uni.login({
     provider: 'weixin',
-    success: (res) => {
-      api.user.login(res.code || '', { nickname: '微信用户' }).then((r: any) => {
-        uni.setStorageSync('token', r.token);
-        userInfo.value = r.user;
+    success: async (res) => {
+      try {
+        const result = await api.user.login(res.code || '');
+        if (!result?.token || !result?.user?.id) throw new Error('invalid login');
+        uni.setStorageSync('token', result.token);
+        uni.setStorageSync('userInfo', result.user);
+        userInfo.value = result.user;
         uni.showToast({ title: '登录成功', icon: 'success' });
-      }).catch(() => {
-        uni.showToast({ title: '暂用体验账号', icon: 'none' });
-        userInfo.value = demoUser;
-      }).finally(() => {
-        loginLoading.value = false;
-      });
+      } catch { notice.value = '微信登录暂时失败，请重试；不登录也可询价'; }
+      finally { loginLoading.value = false; }
     },
-    fail: () => {
-      loginLoading.value = false;
-      uni.showToast({ title: '暂用体验账号', icon: 'none' });
-    },
+    fail: () => { loginLoading.value = false; notice.value = '微信登录失败，请重试'; },
   });
 }
-
-const stats = [
-  { label: '积分', key: 'points' },
-  { label: '购物车', key: 'cartCount' },
-  { label: '收藏', key: 'favoriteCount' },
-  { label: '足迹', key: 'footprintCount' },
-];
-
-const orderItems = [
-  { icon: '□', text: '待付款', url: '/pages/order/list?status=pending' },
-  { icon: '◇', text: '待收货', url: '/pages/order/list?status=shipped' },
-  { icon: '￥', text: '退款/售后', url: '/pages/order/list?status=refund' },
-  { icon: '▤', text: '全部订单', url: '/pages/order/list' },
-];
-
-const serviceItems = [
-  { icon: '☰', text: '全部方案', url: '/pages/product/list' },
-  { icon: '▣', text: '制作方案', url: '/pages/share/share' },
-  { icon: '☎', text: '电话客服', url: '' },
-  { icon: '☷', text: '微信客服', url: '' },
-  { icon: '⌖', text: '我的地址', url: '/pages/address/list' },
-  { icon: '▦', text: '二维码', url: '' },
-];
-
-function openItem(url: string) {
-  if (!url) {
-    uni.showToast({ title: '客服入口待配置', icon: 'none' });
-    return;
-  }
-  uni.navigateTo({ url });
+function logout() {
+  ++refreshSequence;
+  uni.removeStorageSync('token'); uni.removeStorageSync('userInfo'); userInfo.value = null;
 }
+function browse() { uni.switchTab({ url: '/pages/library/library' }); }
+function inquire() { uni.navigateTo({ url: '/pages/product/list' }); }
 </script>
-
 <template>
   <view class="page">
     <view class="profile">
       <view class="title">我的</view>
       <view class="profile-row">
-        <view class="avatar">
-          <text class="avatar-text">礼</text>
-        </view>
-        <view class="profile-main" @tap="!userInfo && login()">
-          <text class="user-id">ID:{{ userInfo?.id || '未登录' }}</text>
-          <text class="phone">联系方式：{{ userInfo?.phone || '点击登录后完善' }}</text>
-        </view>
-        <view class="member-card">名片</view>
-      </view>
-      <view class="login-btn" v-if="!uni.getStorageSync('token')" @tap="login">
-        {{ loginLoading ? '登录中...' : '微信登录' }}
-      </view>
-    </view>
-
-    <view class="stats-row">
-      <view class="stat-item" v-for="item in stats" :key="item.key">
-        <text class="stat-num">{{ userInfo?.[item.key] || 0 }}</text>
-        <text class="stat-label">{{ item.label }}</text>
-      </view>
-    </view>
-
-    <view class="panel order-panel">
-      <view class="grid four">
-        <view class="grid-item" v-for="item in orderItems" :key="item.text" @tap="openItem(item.url)">
-          <text class="grid-icon">{{ item.icon }}</text>
-          <text class="grid-text">{{ item.text }}</text>
+        <view class="avatar">礼</view>
+        <view class="profile-main">
+          <text class="name">{{ userInfo?.nickname || '欢迎来到酷礼工坊' }}</text>
+          <text class="hint">{{ userInfo ? '已登录 · ID ' + userInfo.id : '浏览礼品、提交询价，无需登录' }}</text>
         </view>
       </view>
+      <button v-if="!userInfo" class="login-btn" :disabled="loginLoading" @tap="login">{{ loginLoading ? '登录中…' : '微信登录' }}</button>
+      <button v-else class="login-btn" @tap="logout">退出登录</button>
+      <text v-if="notice" class="notice">{{ notice }}</text>
     </view>
-
     <view class="panel">
-      <view class="grid four">
-        <view class="grid-item" v-for="item in serviceItems" :key="item.text" @tap="openItem(item.url)">
-          <text class="grid-icon">{{ item.icon }}</text>
-          <text class="grid-text">{{ item.text }}</text>
-        </view>
-      </view>
+      <view class="service" @tap="browse"><text>浏览礼品</text><text>›</text></view>
+      <view class="service" @tap="inquire"><text>选择礼品询价</text><text>›</text></view>
     </view>
+    <view class="note">提交采购数量、预算和联系方式，我们会为您提供选品与报价。</view>
   </view>
 </template>
-
 <style scoped>
-.page {
-  min-height: 100vh;
-  padding-bottom: 120rpx;
-  background: #f5f5f5;
-}
-
-.profile {
-  padding: 42rpx 34rpx 108rpx;
-  background: linear-gradient(180deg, #dfcdb5 0%, #eee5d8 100%);
-}
-
-.title {
-  margin-bottom: 56rpx;
-  color: #333;
-  font-size: 44rpx;
-  font-weight: 750;
-}
-
-.profile-row {
-  display: flex;
-  align-items: center;
-}
-
-.avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 132rpx;
-  height: 132rpx;
-  overflow: hidden;
-  background: rgba(255, 255, 255, .85);
-  border: 6rpx solid #fff;
-  border-radius: 50%;
-}
-
-.avatar-text {
-  color: #c8a579;
-  font-size: 52rpx;
-  font-weight: 700;
-}
-
-.profile-main {
-  flex: 1;
-  min-width: 0;
-  margin-left: 28rpx;
-}
-
-.user-id {
-  display: block;
-  color: #333;
-  font-size: 38rpx;
-  font-weight: 700;
-}
-
-.phone {
-  display: block;
-  margin-top: 20rpx;
-  color: #555;
-  font-size: 26rpx;
-}
-
-.member-card {
-  padding: 10rpx 16rpx;
-  color: #fff;
-  background: #333;
-  border-radius: 8rpx;
-  font-size: 22rpx;
-}
-
-.login-btn {
-  display: inline-flex;
-  height: 52rpx;
-  align-items: center;
-  margin-top: 28rpx;
-  padding: 0 28rpx;
-  color: #fff;
-  background: #8a6a3f;
-  border-radius: 26rpx;
-  font-size: 24rpx;
-}
-
-.stats-row {
-  display: flex;
-  margin: -70rpx 28rpx 24rpx;
-  padding: 26rpx 0;
-  background: rgba(255, 255, 255, .82);
-  border-radius: 22rpx;
-}
-
-.stat-item {
-  flex: 1;
-  text-align: center;
-}
-
-.stat-num {
-  display: block;
-  color: #333;
-  font-size: 42rpx;
-}
-
-.stat-label {
-  display: block;
-  margin-top: 8rpx;
-  color: #777;
-  font-size: 24rpx;
-}
-
-.panel {
-  margin: 24rpx 28rpx;
-  padding: 34rpx 18rpx;
-  background: #fff;
-  border-radius: 22rpx;
-}
-
-.grid {
-  display: grid;
-}
-
-.grid.four {
-  grid-template-columns: repeat(4, 1fr);
-  row-gap: 36rpx;
-}
-
-.grid-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 108rpx;
-}
-
-.grid-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 58rpx;
-  height: 58rpx;
-  color: #444;
-  font-size: 34rpx;
-}
-
-.grid-text {
-  margin-top: 14rpx;
-  color: #666;
-  font-size: 25rpx;
-}
+.page { min-height:100vh; background:#f5f5f5; padding-bottom:120rpx; }
+.profile { padding:42rpx 34rpx; background:linear-gradient(180deg,#dfcdb5,#eee5d8); }
+.title { font-size:44rpx; font-weight:700; margin-bottom:46rpx; }
+.profile-row { display:flex; align-items:center; gap:24rpx; }
+.avatar { width:112rpx; height:112rpx; line-height:112rpx; text-align:center; border-radius:50%; background:#fff; color:#8a6a3f; font-size:48rpx; }
+.profile-main { flex:1; }.name { display:block; font-size:34rpx; font-weight:700; }
+.hint,.notice { display:block; margin-top:16rpx; font-size:25rpx; color:#665a4b; }
+.login-btn { margin:28rpx 0 0; padding:0 28rpx; display:inline-block; font-size:26rpx; background:#8a6a3f; color:#fff; }
+.panel { margin:28rpx; padding:0 28rpx; background:#fff; border-radius:20rpx; }
+.service { display:flex; justify-content:space-between; padding:32rpx 0; border-bottom:1rpx solid #eee; font-size:30rpx; }
+.service:last-child { border:0; }.note { margin:28rpx; color:#777; font-size:26rpx; line-height:1.8; }
 </style>

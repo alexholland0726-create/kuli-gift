@@ -1,9 +1,20 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly appService: AppService, private readonly dataSource: DataSource) {}
+
+  @Get('health')
+  async health() {
+    try {
+      await this.dataSource.query('SELECT 1');
+      return { status: 'ok', database: 'up', version: '1.0.0' };
+    } catch {
+      throw new ServiceUnavailableException({ status: 'degraded', database: 'down', version: '1.0.0' });
+    }
+  }
 
   @Get()
   getHello() {

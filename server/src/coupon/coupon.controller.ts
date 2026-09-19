@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { CouponService } from './coupon.service';
 
 @Controller('api/coupons')
+@UseGuards(AuthGuard('jwt'))
 export class CouponController {
   constructor(private readonly couponService: CouponService) {}
 
@@ -13,13 +15,13 @@ export class CouponController {
 
   @Post(':id/claim')
   async claim(@Param('id') id: string, @Req() req: any) {
-    const userId = req.user?.id || 1; // 临时默认
+    const userId = req.user.id;
     return this.couponService.claimCoupon(Number(id), userId);
   }
 
   @Get('mine')
   async mine(@Req() req: any) {
-    const userId = req.user?.id || 1;
+    const userId = req.user.id;
     return this.couponService.getUserCoupons(userId);
   }
 }
