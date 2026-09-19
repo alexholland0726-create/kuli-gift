@@ -1,7 +1,6 @@
 import { All, Controller, INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import { APP_GUARD, HttpAdapterHost } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
@@ -22,6 +21,7 @@ import { AuthService } from '../src/auth/auth.service';
 import { JwtStrategy } from '../src/auth/jwt.strategy';
 import { UserService } from '../src/user/user.service';
 import { UploadsExceptionFilter } from '../src/uploads-exception.filter';
+import express from 'express';
 
 @Controller('api')
 class LegacyController {
@@ -49,10 +49,6 @@ describe('W1–W6 HTTP regression (isolated, no .env or database)', () => {
   };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      imports: [ServeStaticModule.forRoot({
-        rootPath: join(__dirname, 'fixtures/uploads'), serveRoot: '/uploads',
-        exclude: ['/uploads', '/uploads/{*path}'], serveStaticOptions: { index: false },
-      })],
       controllers: [CategoryController, AdminCategoryController, ProductController, AppController, AuthController, LegacyController],
       providers: [CategoryService, AppService, JwtStrategy,
         { provide: getRepositoryToken(Category), useValue: repo },
@@ -69,6 +65,7 @@ describe('W1–W6 HTTP regression (isolated, no .env or database)', () => {
       ],
     }).compile();
     app = module.createNestApplication();
+    app.use('/uploads', express.static(join(process.cwd(), 'test/fixtures/uploads'), { index: false, redirect: false }));
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
     app.useGlobalFilters(new UploadsExceptionFilter(app.get(HttpAdapterHost)));
     await app.init();

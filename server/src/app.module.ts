@@ -52,8 +52,11 @@ import { StaffModule } from './staff/staff.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
-      exclude: ['/uploads', '/uploads/{*path}'],
-      serveStaticOptions: { index: false },
+      // Disable ServeStaticModule's SPA-style index fallback for uploads.
+      // The static middleware still serves real files; missing paths fall
+      // through to Nest where UploadsExceptionFilter returns a safe 404.
+      renderPath: '/__index_disabled__',
+      serveStaticOptions: { index: false, redirect: false },
     }),
     ServeStaticModule.forRoot({ rootPath: join(__dirname, '..', 'admin'), serveRoot: '/admin' }),
     StaffModule,
