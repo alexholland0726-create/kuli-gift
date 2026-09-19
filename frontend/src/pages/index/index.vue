@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue';
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { api } from '@/api/index';
-import { demoQuickEntries } from '@/api/mock';
 
 interface Category {
   id: number;
@@ -30,13 +29,24 @@ const heroImg = '/static/banners/home-hero.jpg';
 
 const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect fill="%23f6faf5" width="220" height="220"/><circle cx="110" cy="92" r="42" fill="%23d5ecd4"/><rect x="56" y="134" width="108" height="34" rx="17" fill="%239ac58f"/><text x="110" y="198" text-anchor="middle" fill="%23799a71" font-size="20">礼品图</text></svg>';
 
+const quickEntries = [
+  { name: '食品礼盒', categoryId: 2, image: '/static/products/zk-03.jpg' },
+  { name: '生鲜滋补', categoryId: 3, image: '/static/products/zk-08.jpg' },
+  { name: '家居家纺', categoryId: 4, image: '/static/products/zk-07.jpg' },
+  { name: '厨具餐具', categoryId: 5, image: '/static/products/zk-05.jpg' },
+  { name: '商务箱包', categoryId: 6, image: '/static/products/zk-06.jpg' },
+  { name: '数码小电', categoryId: 7, image: '/static/products/zk-01.jpg' },
+  { name: '保温杯', categoryId: 8, image: '/static/products/zk-09.jpg' },
+  { name: '运动户外', categoryId: 9, image: '/static/products/zk-02.jpg' },
+];
+
 const scenes = [
-  { title: '端午节', desc: '平台推荐', keyword: '端午', theme: 'festival' },
-  { title: '夏季专区', desc: '清凉一夏', keyword: '夏季', theme: 'summer' },
-  { title: '父亲节', desc: '感恩父亲节', keyword: '父亲节', theme: 'father' },
-  { title: '专享特惠', desc: '批量好价', keyword: '特惠', theme: 'deal' },
-  { title: '折扣专区', desc: '现货清仓', keyword: '折扣', theme: 'discount' },
-  { title: '毕业季', desc: '纪念礼赠', keyword: '毕业', theme: 'graduate' },
+  { title: '员工福利', desc: '日常关怀与节日福利', categoryId: 2, theme: 'festival' },
+  { title: '健康关怀', desc: '营养滋补与健康礼赠', categoryId: 3, theme: 'summer' },
+  { title: '居家好礼', desc: '家居家纺实用精选', categoryId: 4, theme: 'father' },
+  { title: '商务馈赠', desc: '会议活动与客户答谢', categoryId: 6, theme: 'deal' },
+  { title: '数码精选', desc: '办公与生活小电', categoryId: 7, theme: 'discount' },
+  { title: '户外团建', desc: '运动户外与团队活动', categoryId: 9, theme: 'graduate' },
 ];
 
 onMounted(async () => {
@@ -121,7 +131,7 @@ function priceLabel(price: number | string) {
       </view>
       <view class="notice-row" v-if="announcementVisible">
         <text class="notice-icon">!</text>
-        <text class="notice-text">夏季/节庆专区已上线，可从产品池自由选品</text>
+        <text class="notice-text">支持企业福利、客户答谢和活动礼赠，可按需求提交询价</text>
         <text class="notice-close" @tap.stop="closeAnnouncement">×</text>
       </view>
       <image class="hero-img" :src="heroImg" mode="aspectFill" />
@@ -130,9 +140,9 @@ function priceLabel(price: number | string) {
     <view class="quick-panel">
       <view
         class="quick-item"
-        v-for="entry in demoQuickEntries"
+        v-for="entry in quickEntries"
         :key="entry.name"
-        @tap="goLibrary(entry.keyword)"
+        @tap="goCategory(entry.categoryId)"
       >
         <view class="quick-icon">
           <image class="quick-img" :src="entry.image" mode="aspectFill" />
@@ -177,7 +187,7 @@ function priceLabel(price: number | string) {
         :class="`scene-${scene.theme}`"
         v-for="scene in scenes"
         :key="scene.title"
-        @tap="goLibrary(scene.keyword)"
+        @tap="goCategory(scene.categoryId)"
       >
         <text class="scene-title">{{ scene.title }}</text>
         <text class="scene-desc">{{ scene.desc }}</text>

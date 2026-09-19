@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Param, Body, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { GrouponService } from './groupon.service';
 
 @Controller('api/groupon')
+@UseGuards(AuthGuard('jwt'))
 export class GrouponController {
   constructor(private readonly grouponService: GrouponService) {}
 
@@ -12,7 +14,7 @@ export class GrouponController {
 
   @Post(':activityId/create')
   async createGroup(@Param('activityId') activityId: string, @Req() req: any) {
-    const userId = req.user?.id || 1;
+    const userId = req.user.id;
     return this.grouponService.createGroup(Number(activityId), userId);
   }
 
@@ -22,7 +24,7 @@ export class GrouponController {
     @Param('groupId') groupId: string,
     @Req() req: any,
   ) {
-    const userId = req.user?.id || 1;
+    const userId = req.user.id;
     return this.grouponService.joinGroup(Number(activityId), Number(groupId), userId);
   }
 
