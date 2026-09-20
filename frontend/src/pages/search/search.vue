@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 
 const keyword = ref('');
-const hotSearches = ['礼品', '定制', '企业团购', '商务礼品', '节日礼物'];
+const hotSearches = ['商务', '茶具', '户外', '健康', '保温杯'];
 
 function doSearch() {
   if (!keyword.value.trim()) {
@@ -43,7 +43,7 @@ function onHotTap(kw: string) {
     <view class="hot-section">
       <text class="section-title">热门搜索</text>
       <view class="hot-tags">
-        <text class="hot-tag" v-for="kw in hotSearches" :key="kw" @tap="onHotTap(kw)">{{ kw }}</text>
+        <text class="hot-tag" hover-class="pressable" v-for="kw in hotSearches" :key="kw" @tap="onHotTap(kw)">{{ kw }}</text>
       </view>
     </view>
   </view>

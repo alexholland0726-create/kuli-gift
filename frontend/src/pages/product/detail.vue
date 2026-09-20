@@ -48,6 +48,8 @@ const quantity = ref(1);
 const selectedSpecs = ref<Record<string, string>>({});
 const showSpecPanel = ref(false);
 const loading = ref(false);
+const detailLoading = ref(true);
+const loadError = ref(false);
 const actionType = ref<'cart' | 'buy'>('cart');
 const commerceEnabled = ref(false);
 
@@ -70,13 +72,16 @@ function enableShareMenu() {
 }
 
 async function loadProduct() {
+  detailLoading.value = true; loadError.value = false;
   try {
     const res = await api.products.detail(id.value);
     product.value = res as Product;
   } catch (_) {
     product.value = null;
+    loadError.value = true;
     uni.showToast({ title: '产品已下架或加载失败', icon: 'none' });
   }
+  finally { detailLoading.value = false; }
   initSpecs();
 }
 
@@ -119,7 +124,7 @@ const detailRows = computed(() => [
   { label: '品牌/系列', value: brandName.value },
   { label: '商品品类', value: categoryName.value },
   { label: '采购方式', value: commerceEnabled.value && !isInquiryProduct.value ? '在线下单并使用微信支付' : '企业询价，线下确认报价' },
-  { label: '库存状态', value: `${product.value?.stock || 0} 件` },
+  { label: '库存状态', value: commerceEnabled.value && !isInquiryProduct.value ? `${product.value?.stock || 0} 件` : '库存与交期以报价确认为准' },
 ].filter((row, index, rows) => rows.findIndex((item) => item.label === row.label) === index));
 const sceneTags = computed(() => {
   if (product.value?.scenes?.length) return product.value.scenes;
@@ -155,7 +160,7 @@ function closeSpecPanel() {
 }
 
 async function addToCart(thenGoCart = false) {
-  if (!product.value) return;
+  if (!product.value || loading.value) return;
   showSpecPanel.value = false;
   if (!commerceEnabled.value || isInquiryProduct.value) {
     uni.navigateTo({ url: `/pages/inquiry/inquiry?id=${product.value.id}&quantity=${quantity.value}` });
@@ -261,7 +266,8 @@ onShareTimeline(() => {
       <view class="price-row">
         <text class="price">{{ priceText }}</text>
         <text class="original" v-if="product.originalPrice">¥{{ product.originalPrice }}</text>
-        <text class="stock">库存 {{ product.stock || 0 }}</text>
+        <text class="stock" v-if="commerceEnabled && !isInquiryProduct">库存 {{ product.stock || 0 }}</text>
+        <text class="stock" v-else>库存与交期以报价为准</text>
       </view>
       <text class="product-title">{{ product.name }}</text>
       <text class="product-desc">{{ product.description }}</text>
@@ -350,14 +356,14 @@ onShareTimeline(() => {
     </view>
 
     <view class="action-bar">
-      <view class="action-item" @tap="uni.switchTab({url:'/pages/index/index'})">
+      <view class="action-item" hover-class="pressable" @tap="uni.switchTab({url:'/pages/index/index'})">
         <text>首页</text>
       </view>
-      <view class="action-item">
-        <text>企业采购</text>
+      <view class="action-item" hover-class="pressable" @tap="handleCart">
+        <text>采购咨询</text>
       </view>
-      <view class="cart-btn" @tap="handleCart">{{ commerceEnabled && !isInquiryProduct ? '加入购物车' : '咨询详情' }}</view>
-      <view class="buy-btn" @tap="handleBuy">{{ commerceEnabled && !isInquiryProduct ? '立即购买' : '立即询价' }}</view>
+      <view class="cart-btn" hover-class="pressable" @tap="handleCart">{{ commerceEnabled && !isInquiryProduct ? '加入购物车' : '咨询详情' }}</view>
+      <view class="buy-btn" hover-class="pressable" @tap="handleBuy">{{ commerceEnabled && !isInquiryProduct ? '立即购买' : '立即询价' }}</view>
     </view>
 
     <view class="spec-overlay" v-if="showSpecPanel" @tap="closeSpecPanel">
@@ -399,10 +405,18 @@ onShareTimeline(() => {
       </view>
     </view>
   </view>
+  <view class="state-page" v-else-if="detailLoading">
+    <view class="detail-skeleton hero"></view><view class="detail-skeleton line wide"></view><view class="detail-skeleton line"></view><view class="detail-skeleton block"></view>
+  </view>
+  <view class="state-page failed" v-else>
+    <text class="failed-mark">!</text><text class="failed-title">暂时无法打开这个商品</text><text class="failed-desc">商品可能已下架，或网络连接不稳定</text>
+    <view class="retry-btn" hover-class="pressable" @tap="loadProduct">重新加载</view><view class="browse-btn" hover-class="pressable" @tap="uni.navigateBack()">返回继续选品</view>
+  </view>
 </template>
 
 <style scoped>
 .page { min-height: 100vh; background: #f6f7f4; padding-bottom: 136rpx; }
+.state-page{min-height:100vh;padding:24rpx;background:#f6f7f4;box-sizing:border-box}.detail-skeleton{background:linear-gradient(90deg,#e9eee6 25%,#f8faf6 50%,#e9eee6 75%);background-size:200% 100%;animation:shimmer 1.25s infinite;border-radius:20rpx}.detail-skeleton.hero{height:650rpx;margin:-24rpx -24rpx 28rpx;border-radius:0}.detail-skeleton.line{width:58%;height:30rpx;margin:18rpx 0}.detail-skeleton.line.wide{width:88%;height:42rpx}.detail-skeleton.block{height:220rpx;margin-top:36rpx}.failed{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.failed-mark{width:84rpx;height:84rpx;line-height:84rpx;color:#5f8d53;background:#eaf4e5;border-radius:50%;font-size:46rpx;font-weight:800}.failed-title{margin-top:28rpx;color:#253128;font-size:34rpx;font-weight:800}.failed-desc{margin-top:12rpx;color:#849087;font-size:25rpx}.retry-btn,.browse-btn{width:360rpx;height:78rpx;margin-top:34rpx;line-height:78rpx;text-align:center;border-radius:999rpx}.retry-btn{color:#fff;background:#315f40}.browse-btn{margin-top:16rpx;color:#315f40;background:#eaf4e5}@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
 .detail-swiper { height: 640rpx; background: linear-gradient(180deg, #eef7e8, #f8faf4); }
 .swiper-img { width: 100%; height: 100%; }
 .product-main { margin: -28rpx 20rpx 20rpx; padding: 30rpx; background: #fff; border-radius: 22rpx; position: relative; z-index: 2; box-shadow: 0 12rpx 34rpx rgba(65, 91, 48, .08); }

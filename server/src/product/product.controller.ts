@@ -13,8 +13,9 @@ export class ProductController {
     @Query('recommended') recommended?: boolean,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('sort') sort?: string,
   ) {
-    return this.service.findAll({ categoryId, keyword, recommended, page, limit });
+    return this.service.findAll({ categoryId, keyword, recommended, page, limit, sort });
   }
 
   @Get(':id')

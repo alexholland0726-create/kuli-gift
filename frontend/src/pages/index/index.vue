@@ -24,6 +24,7 @@ const rootCategories = (items: Category[]) => items.filter((item) => item.parent
 const categories = ref<Category[]>([]);
 const featuredProducts = ref<Product[]>([]);
 const announcementVisible = ref(true);
+const homeLoading = ref(true);
 
 const shareTitle = ref('酷礼工坊｜企业礼品一站式选品');
 const notice = ref('支持企业福利、客户答谢和活动礼赠，可按需求提交询价');
@@ -78,6 +79,7 @@ onMounted(async () => {
       featuredProducts.value = realProducts;
     }
   } catch (_) {}
+  finally { homeLoading.value = false; }
 });
 
 function enableShareMenu() {
@@ -134,11 +136,15 @@ function priceLabel(price: number | string) {
 <template>
   <view class="page">
     <view class="hero-shell">
-      <view class="about-pill">关于我们</view>
-      <view class="search-bar" @tap="goSearch">
+      <view class="brand-head">
+        <text class="brand-eyebrow">KULI GIFT · 企业礼赠</text>
+        <text class="brand-title">把每一份心意，送得更体面</text>
+        <text class="brand-subtitle">按预算、场景和人群快速选品</text>
+      </view>
+      <view class="search-bar" hover-class="pressable" @tap="goSearch">
         <text class="search-dot"></text>
         <text class="search-text">请搜索你想要的礼品名称、品牌或型号</text>
-        <text class="camera-icon">□</text>
+        <text class="search-action">搜索</text>
       </view>
       <view class="notice-row" v-if="announcementVisible">
         <text class="notice-icon">!</text>
@@ -151,6 +157,7 @@ function priceLabel(price: number | string) {
     <view class="quick-panel">
       <view
         class="quick-item"
+        hover-class="pressable"
         v-for="entry in quickEntries"
         :key="entry.name"
         @tap="goCategory(entry.categoryId)"
@@ -160,11 +167,6 @@ function priceLabel(price: number | string) {
         </view>
         <text class="quick-name">{{ entry.name }}</text>
       </view>
-      <view class="quick-dots">
-        <text class="dot active"></text>
-        <text class="dot"></text>
-        <text class="dot"></text>
-      </view>
     </view>
 
     <view class="section product-section">
@@ -173,10 +175,13 @@ function priceLabel(price: number | string) {
           <text class="section-title">首页主推产品</text>
           <text class="section-sub">来自产品池的主推商品</text>
         </view>
-        <text class="section-more" @tap="goLibrary()">礼品库</text>
+        <text class="section-more" hover-class="pressable" @tap="goLibrary()">查看全部 →</text>
+      </view>
+      <view class="product-grid skeleton-grid" v-if="homeLoading && !featuredProducts.length">
+        <view class="product-card skeleton-card" v-for="i in 4" :key="i"><view class="skeleton-image"></view><view class="skeleton-line wide"></view><view class="skeleton-line"></view></view>
       </view>
       <view class="product-grid">
-        <view class="product-card" v-for="item in featuredProducts" :key="item.id" @tap="goProductDetail(item.id)">
+        <view class="product-card" hover-class="pressable" v-for="item in featuredProducts" :key="item.id" @tap="goProductDetail(item.id)">
           <image class="product-img" :src="item.coverImage || productPlaceholder" mode="aspectFill" />
           <view class="product-info">
             <view class="tag-line">
@@ -185,7 +190,7 @@ function priceLabel(price: number | string) {
             <text class="product-name">{{ item.name }}</text>
             <view class="price-row">
               <text class="price">{{ priceLabel(item.price) }}</text>
-              <text class="add-btn">+</text>
+              <text class="add-btn">查看 →</text>
             </view>
           </view>
         </view>
@@ -195,6 +200,7 @@ function priceLabel(price: number | string) {
     <view class="scene-grid">
       <view
         class="scene-card"
+        hover-class="pressable"
         :class="`scene-${scene.theme}`"
         v-for="scene in scenes"
         :key="scene.title"
@@ -210,12 +216,12 @@ function priceLabel(price: number | string) {
       <view class="section-head">
         <view>
           <text class="section-title">产品分类</text>
-          <text class="section-sub">按品类快速筛选，适合批量上传产品</text>
+          <text class="section-sub">按品类快速找到适合的企业礼品</text>
         </view>
-        <text class="section-more" @tap="goAllCategories">全部</text>
+        <text class="section-more" hover-class="pressable" @tap="goAllCategories">全部分类 →</text>
       </view>
       <view class="category-grid">
-        <view class="category-item" v-for="cat in categories" :key="cat.id" @tap="goCategory(cat.id)">
+        <view class="category-item" hover-class="pressable" v-for="cat in categories" :key="cat.id" @tap="goCategory(cat.id)">
           <view class="category-icon">{{ cat.name.slice(0, 1) }}</view>
           <text class="category-name">{{ cat.name }}</text>
         </view>
@@ -237,6 +243,14 @@ function priceLabel(price: number | string) {
   padding: 36rpx 28rpx 0;
 }
 
+.brand-head {
+  display: flex;
+  flex-direction: column;
+  margin: 6rpx 2rpx 28rpx;
+}
+.brand-eyebrow { color: #426b4b; font-size: 20rpx; font-weight: 800; letter-spacing: 4rpx; }
+.brand-title { margin-top: 12rpx; color: #17311f; font-size: 44rpx; font-weight: 850; letter-spacing: -1rpx; }
+.brand-subtitle { margin-top: 10rpx; color: #66796a; font-size: 25rpx; }
 .about-pill {
   display: inline-flex;
   align-items: center;
@@ -275,10 +289,7 @@ function priceLabel(price: number | string) {
   font-size: 28rpx;
 }
 
-.camera-icon {
-  color: #333;
-  font-size: 36rpx;
-}
+.search-action { padding: 10rpx 20rpx; color: #fff; background: #315f40; border-radius: 999rpx; font-size: 23rpx; font-weight: 700; }
 
 .notice-row {
   display: flex;
@@ -323,7 +334,7 @@ function priceLabel(price: number | string) {
   display: flex;
   flex-wrap: wrap;
   margin: 18rpx 28rpx;
-  padding: 24rpx 16rpx 42rpx;
+  padding: 24rpx 16rpx;
   background: #fff;
   border-radius: 24rpx;
 }
@@ -332,7 +343,7 @@ function priceLabel(price: number | string) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 20%;
+  width: 25%;
   padding: 12rpx 0;
 }
 
@@ -509,26 +520,27 @@ function priceLabel(price: number | string) {
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14rpx;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18rpx;
 }
 
 .product-card {
   min-width: 0;
   overflow: hidden;
   background: #fff;
-  border: 1rpx solid #eef2ea;
-  border-radius: 18rpx;
+  border: 1rpx solid #e7eee3;
+  border-radius: 22rpx;
+  box-shadow: 0 10rpx 28rpx rgba(37, 66, 44, .07);
 }
 
 .product-img {
   width: 100%;
-  height: 210rpx;
+  height: 292rpx;
   background: #f4f7f1;
 }
 
 .product-info {
-  padding: 12rpx;
+  padding: 18rpx;
 }
 
 .tag-line {
@@ -547,12 +559,13 @@ function priceLabel(price: number | string) {
 
 .product-name {
   display: -webkit-box;
-  height: 68rpx;
+  height: 76rpx;
   margin-top: 8rpx;
   overflow: hidden;
   color: #333;
-  font-size: 23rpx;
-  line-height: 34rpx;
+  font-size: 27rpx;
+  font-weight: 650;
+  line-height: 38rpx;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -566,19 +579,26 @@ function priceLabel(price: number | string) {
 
 .price {
   color: #d35b4b;
-  font-size: 24rpx;
+  font-size: 29rpx;
   font-weight: 700;
 }
+.skeleton-card { pointer-events: none; }
+.skeleton-image, .skeleton-line { background: linear-gradient(90deg,#eef1eb 25%,#f8faf6 50%,#eef1eb 75%); background-size: 200% 100%; animation: shimmer 1.25s infinite; }
+.skeleton-image { height: 292rpx; }
+.skeleton-line { width: 54%; height: 24rpx; margin: 18rpx; border-radius: 12rpx; }
+.skeleton-line.wide { width: 76%; margin-bottom: 8rpx; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 .add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42rpx;
+  min-width: 86rpx;
   height: 42rpx;
+  padding: 0 14rpx;
   color: #b48745;
   border: 2rpx solid #d7b77e;
-  border-radius: 50%;
-  font-size: 30rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
 }
 </style>

@@ -113,13 +113,11 @@ onMounted(async () => {
     const realCategories = Array.isArray(res) ? res : [];
     if (realCategories.length) categories.value = realCategories;
   } catch (_) {}
-  loadBrandMaterials();
   loadCategoryProducts();
 });
 
 function selectCategory(index: number) {
   activeIndex.value = index;
-  loadBrandMaterials();
   loadCategoryProducts();
 }
 
@@ -212,7 +210,7 @@ function downloadMaterial(source: SourceLink) {
 
 <template>
   <view class="page">
-    <view class="search-shell" @tap="goSearch">
+    <view class="search-shell" hover-class="pressable" @tap="goSearch">
       <text class="search-icon"></text>
       <text class="search-text">请搜索你想要的礼品品类、品牌或型号</text>
     </view>
@@ -221,6 +219,7 @@ function downloadMaterial(source: SourceLink) {
       <scroll-view class="left-nav" scroll-y>
         <view
           class="nav-item"
+          hover-class="pressable"
           :class="{ active: activeIndex === i }"
           v-for="(cat, i) in displayCategories"
           :key="cat.id"
@@ -233,12 +232,13 @@ function downloadMaterial(source: SourceLink) {
       <scroll-view class="right-panel" scroll-y>
         <view class="panel-head">
           <text class="panel-title">{{ currentCategory?.name || '全部分类' }}</text>
-          <text class="panel-action" @tap="goProductList(currentCategory?.id)">查看商品</text>
+          <text class="panel-action" hover-class="pressable" @tap="goProductList(currentCategory?.id)">查看全部 →</text>
         </view>
 
         <view class="sub-grid">
           <view
             class="sub-item"
+            hover-class="pressable"
             v-for="item in childCategories"
             :key="`category-${item.id}`"
             @tap="goProductList(item.id)"
@@ -248,6 +248,7 @@ function downloadMaterial(source: SourceLink) {
           </view>
           <view
             class="sub-item"
+            hover-class="pressable"
             v-for="item in displayProducts"
             :key="`product-${item.id}`"
             @tap="uni.navigateTo({ url: '/pages/product/detail?id=' + item.id })"
@@ -264,56 +265,6 @@ function downloadMaterial(source: SourceLink) {
           </view>
         </view>
 
-        <view class="material-panel" v-if="childCategories.length">
-          <view class="material-head">
-            <text class="material-title">产品资料</text>
-            <text class="material-subtitle">PDF 预览 / 下载</text>
-          </view>
-          <view
-            class="material-card"
-            v-for="brand in childCategories"
-            :key="`material-${brand.id}`"
-          >
-            <view class="material-brand-row">
-              <view class="material-brand-icon">{{ brand.name.slice(0, 1) }}</view>
-              <view class="material-brand-info">
-                <text class="material-brand-name">{{ brand.name }}</text>
-                <text class="material-brand-meta">
-                  {{ brandMaterialMap[brand.id]?.productCount || 0 }} 个产品 · {{ brandMaterialMap[brand.id]?.materials?.length || 0 }} 份资料
-                </text>
-              </view>
-              <text class="material-brand-action" @tap="goProductList(brand.id)">看产品</text>
-            </view>
-
-            <view class="material-list" v-if="brandMaterialMap[brand.id]?.materials?.length">
-              <view
-                class="material-row"
-                v-for="source in brandMaterialMap[brand.id].materials"
-                :key="source.url"
-              >
-                <view class="material-file">
-                  <text class="material-file-icon">PDF</text>
-                  <view class="material-file-copy">
-                    <text class="material-file-title">{{ source.title }}</text>
-                    <text class="material-file-note">{{ source.note || '原始产品资料' }}</text>
-                  </view>
-                </view>
-                <view class="material-actions">
-                  <text class="material-btn" @tap="previewMaterial(source)">预览</text>
-                  <text class="material-btn primary" @tap="downloadMaterial(source)">下载</text>
-                </view>
-              </view>
-            </view>
-            <view class="material-empty" v-else>
-              <text>暂无 PDF，上传原始资料后会显示在这里。</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="tips-card">
-          <text class="tips-title">分类上传建议</text>
-          <text class="tips-desc">礼品产品结构可以保持简单：先建大类，再把产品放入产品池；首页主推从产品池中勾选即可。</text>
-        </view>
       </scroll-view>
     </view>
   </view>

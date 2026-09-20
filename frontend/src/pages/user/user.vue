@@ -79,15 +79,15 @@ function openPage(path: string) { if (!userInfo.value) { notice.value = '请先�
   </view>
 </template>
 <style scoped>
-.page { min-height:100vh; background:#f5f5f5; padding-bottom:120rpx; }
-.profile { padding:42rpx 34rpx; background:linear-gradient(180deg,#dfcdb5,#eee5d8); }
+.page { min-height:100vh; background:#f4f7f2; padding-bottom:120rpx; }
+.profile { padding:42rpx 34rpx; background:linear-gradient(145deg,#dff1d7,#f4f8ee); }
 .title { font-size:44rpx; font-weight:700; margin-bottom:46rpx; }
 .profile-row { display:flex; align-items:center; gap:24rpx; }
-.avatar { width:112rpx; height:112rpx; line-height:112rpx; text-align:center; border-radius:50%; background:#fff; color:#8a6a3f; font-size:48rpx; }
+.avatar { width:112rpx; height:112rpx; line-height:112rpx; text-align:center; border-radius:32rpx; background:#fff; color:#4f8b43; font-size:48rpx; box-shadow:0 10rpx 28rpx rgba(66,112,58,.12); }
 .profile-main { flex:1; }.name { display:block; font-size:34rpx; font-weight:700; }
-.hint,.notice { display:block; margin-top:16rpx; font-size:25rpx; color:#665a4b; }
-.login-btn { margin:28rpx 0 0; padding:0 28rpx; display:inline-block; font-size:26rpx; background:#8a6a3f; color:#fff; }
-.panel { margin:28rpx; padding:0 28rpx; background:#fff; border-radius:20rpx; }
+.hint,.notice { display:block; margin-top:16rpx; font-size:25rpx; color:#5c6a58; }
+.login-btn { margin:28rpx 0 0; padding:0 28rpx; display:inline-block; font-size:26rpx; background:#5f9d46; color:#fff; border-radius:999rpx; }
+.panel { margin:28rpx; padding:0 28rpx; background:#fff; border-radius:24rpx; box-shadow:0 10rpx 30rpx rgba(37,66,44,.06); }
 .service { display:flex; justify-content:space-between; padding:32rpx 0; border-bottom:1rpx solid #eee; font-size:30rpx; }
 .service:last-child { border:0; }.note { margin:28rpx; color:#777; font-size:26rpx; line-height:1.8; }
 </style>

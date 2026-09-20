@@ -13,7 +13,7 @@ export class ProductService {
     private categoryRepo: Repository<Category>,
   ) {}
 
-  async findAll(query: { categoryId?: number; keyword?: string; recommended?: boolean; page?: number; limit?: number }): Promise<{ items: Product[]; total: number }> {
+  async findAll(query: { categoryId?: number; keyword?: string; recommended?: boolean; page?: number; limit?: number; sort?: string }): Promise<{ items: Product[]; total: number }> {
     const page = Math.max(1, Math.min(100000, Math.floor(Number(query.page) || 1)));
     const limit = Math.max(1, Math.min(100, Math.floor(Number(query.limit) || 20)));
     const where: any = { isActive: true };
@@ -27,9 +27,14 @@ export class ProductService {
     if (query.keyword) where.name = Like(`%${query.keyword}%`);
     if (query.recommended === true || String(query.recommended) === 'true') where.isRecommended = true;
 
+    const order = query.sort === 'sales'
+      ? { sales: 'DESC' as const, createdAt: 'DESC' as const }
+      : query.sort === 'new'
+        ? { createdAt: 'DESC' as const }
+        : { isRecommended: 'DESC' as const, sales: 'DESC' as const, createdAt: 'DESC' as const };
     const [items, total] = await this.repo.findAndCount({
       where,
-      order: { createdAt: 'DESC' },
+      order,
       skip: (page - 1) * limit,
       take: limit,
       relations: { category: true },
