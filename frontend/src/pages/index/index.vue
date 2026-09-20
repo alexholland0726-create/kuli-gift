@@ -25,11 +25,13 @@ const categories = ref<Category[]>([]);
 const featuredProducts = ref<Product[]>([]);
 const announcementVisible = ref(true);
 
-const heroImg = '/static/banners/home-hero.jpg';
+const shareTitle = ref('酷礼工坊｜企业礼品一站式选品');
+const notice = ref('支持企业福利、客户答谢和活动礼赠，可按需求提交询价');
+const heroImg = ref('/static/banners/home-hero.jpg');
 
 const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220"><rect fill="%23f6faf5" width="220" height="220"/><circle cx="110" cy="92" r="42" fill="%23d5ecd4"/><rect x="56" y="134" width="108" height="34" rx="17" fill="%239ac58f"/><text x="110" y="198" text-anchor="middle" fill="%23799a71" font-size="20">礼品图</text></svg>';
 
-const quickEntries = [
+const quickEntries = ref([
   { name: '食品礼盒', categoryId: 2, image: '/static/products/zk-03.jpg' },
   { name: '生鲜滋补', categoryId: 3, image: '/static/products/zk-08.jpg' },
   { name: '家居家纺', categoryId: 4, image: '/static/products/zk-07.jpg' },
@@ -38,19 +40,28 @@ const quickEntries = [
   { name: '数码小电', categoryId: 7, image: '/static/products/zk-01.jpg' },
   { name: '保温杯', categoryId: 8, image: '/static/products/zk-09.jpg' },
   { name: '运动户外', categoryId: 9, image: '/static/products/zk-02.jpg' },
-];
+]);
 
-const scenes = [
+const scenes = ref([
   { title: '员工福利', desc: '日常关怀与节日福利', categoryId: 2, theme: 'festival' },
   { title: '健康关怀', desc: '营养滋补与健康礼赠', categoryId: 3, theme: 'summer' },
   { title: '居家好礼', desc: '家居家纺实用精选', categoryId: 4, theme: 'father' },
   { title: '商务馈赠', desc: '会议活动与客户答谢', categoryId: 6, theme: 'deal' },
   { title: '数码精选', desc: '办公与生活小电', categoryId: 7, theme: 'discount' },
   { title: '户外团建', desc: '运动户外与团队活动', categoryId: 9, theme: 'graduate' },
-];
+]);
 
 onMounted(async () => {
   enableShareMenu();
+
+  try {
+    const layout = await api.site.home();
+    if (layout?.shareTitle) shareTitle.value = layout.shareTitle;
+    if (layout?.notice) notice.value = layout.notice;
+    if (layout?.heroImage) heroImg.value = layout.heroImage;
+    if (Array.isArray(layout?.quickEntries) && layout.quickEntries.length) quickEntries.value = layout.quickEntries;
+    if (Array.isArray(layout?.scenes) && layout.scenes.length) scenes.value = layout.scenes;
+  } catch (_) {}
 
   try {
     const catRes = await api.categories.list();
@@ -77,12 +88,12 @@ function enableShareMenu() {
 }
 
 onShareAppMessage(() => ({
-  title: '酷礼工坊｜企业礼品一站式选品',
+  title: shareTitle.value,
   path: '/pages/index/index',
 }));
 
 onShareTimeline(() => ({
-  title: '酷礼工坊｜企业礼品一站式选品',
+  title: shareTitle.value,
   query: '',
 }));
 
@@ -131,7 +142,7 @@ function priceLabel(price: number | string) {
       </view>
       <view class="notice-row" v-if="announcementVisible">
         <text class="notice-icon">!</text>
-        <text class="notice-text">支持企业福利、客户答谢和活动礼赠，可按需求提交询价</text>
+        <text class="notice-text">{{ notice }}</text>
         <text class="notice-close" @tap.stop="closeAnnouncement">×</text>
       </view>
       <image class="hero-img" :src="heroImg" mode="aspectFill" />

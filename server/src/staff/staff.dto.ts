@@ -29,3 +29,7 @@ export class InquiryDto {
 export class InquiryStatusDto {
   @IsIn(['new', 'contacted', 'closed']) status: string;
 }
+export class ShipOrderDto {
+  @IsString() @Length(1, 80) trackingCompany: string;
+  @IsString() @Length(1, 100) trackingNo: string;
+}

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AddressService } from './address.service';
+import { AddressDto } from './address.dto';
 
 @Controller('api/addresses')
 @UseGuards(AuthGuard('jwt'))
@@ -14,13 +15,13 @@ export class AddressController {
   }
 
   @Post()
-  async create(@Body() data: any, @Req() req: any) {
+  async create(@Body() data: AddressDto, @Req() req: any) {
     const userId = req.user.id;
     return this.addressService.create(userId, data);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() data: any, @Req() req: any) {
+  async update(@Param('id') id: string, @Body() data: AddressDto, @Req() req: any) {
     const userId = req.user.id;
     return this.addressService.update(Number(id), userId, data);
   }

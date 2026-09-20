@@ -22,12 +22,14 @@ export class PayController {
   }
 
   @Get('status/:orderNo')
-  async status(@Param('orderNo') orderNo: string) {
-    return this.payService.queryPayStatus(orderNo);
+  @UseGuards(AuthGuard('jwt'))
+  async status(@Param('orderNo') orderNo: string, @Req() req: Request) {
+    return this.payService.queryPayStatus(orderNo, (req as any).user.id);
   }
 
-  @Post('close/:orderNo')
-  async close(@Param('orderNo') orderNo: string) {
-    return this.payService.closeOrder(orderNo);
+  @Post('cancel/:orderNo')
+  @UseGuards(AuthGuard('jwt'))
+  async cancel(@Param('orderNo') orderNo: string, @Req() req: Request) {
+    return this.payService.cancelOrder(orderNo, (req as any).user.id);
   }
 }

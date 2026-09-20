@@ -19,6 +19,7 @@ import { GrouponModule } from './groupon/groupon.module';
 import { PayModule } from './pay/pay.module';
 import { CartModule } from './cart/cart.module';
 import { StaffModule } from './staff/staff.module';
+import { SiteModule } from './site/site.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { StaffModule } from './staff/staff.module';
     }),
     ServeStaticModule.forRoot({ rootPath: join(__dirname, '..', 'admin'), serveRoot: '/admin' }),
     StaffModule,
+    SiteModule,
     ProductModule,
     CategoryModule,
     UserModule,

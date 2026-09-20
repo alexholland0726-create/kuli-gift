@@ -58,8 +58,17 @@ export class Order {
   @Column({ nullable: true })
   paidAt: Date;
 
+  @Column({ length: 64, nullable: true, unique: true })
+  wechatTransactionId: string;
+
   @Column({ nullable: true })
   shippedAt: Date;
+
+  @Column({ length: 80, nullable: true })
+  trackingCompany: string;
+
+  @Column({ length: 100, nullable: true })
+  trackingNo: string;
 
   @Column({ nullable: true })
   completedAt: Date;

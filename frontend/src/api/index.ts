@@ -1,6 +1,10 @@
 import http from './http';
 
 export const api = {
+  site: {
+    home: () => http.get('/api/site/home'),
+    capabilities: () => http.get('/api/site/capabilities'),
+  },
   // 分类
   categories: {
     list: () => http.get('/api/categories'),
@@ -29,12 +33,13 @@ export const api = {
     list: () => http.get('/api/orders'),
     detail: (id: number) => http.get(`/api/orders/${id}`),
     updateStatus: (id: number, status: string) => http.put(`/api/orders/${id}/status`, { status }),
-    cancel: (id: number) => http.put(`/api/orders/${id}/cancel`),
+    cancel: (orderNo: string) => http.post(`/api/pay/cancel/${orderNo}`),
   },
   // 支付
   pay: {
     create: (orderId: number) => http.post('/api/pay/create', { orderId }),
     status: (orderNo: string) => http.get(`/api/pay/status/${orderNo}`),
+    cancel: (orderNo: string) => http.post(`/api/pay/cancel/${orderNo}`),
   },
   // 地址
   addresses: {

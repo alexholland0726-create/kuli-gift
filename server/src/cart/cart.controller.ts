@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AuthGuard } from '@nestjs/passport';
+import { AddCartItemDto, CartQuantityDto, CartSelectDto } from './cart.dto';
 
 @Controller('api/cart')
 @UseGuards(AuthGuard('jwt'))
@@ -14,19 +15,19 @@ export class CartController {
   }
 
   @Post()
-  async add(@Body() body: { productId: number; quantity: number; spec?: string }, @Req() req: any) {
+  async add(@Body() body: AddCartItemDto, @Req() req: any) {
     const userId = req.user.id;
     return this.service.addItem(userId, body);
   }
 
   @Put(':id/quantity')
-  async updateQuantity(@Param('id', ParseIntPipe) id: number, @Body() body: { quantity: number }, @Req() req: any) {
+  async updateQuantity(@Param('id', ParseIntPipe) id: number, @Body() body: CartQuantityDto, @Req() req: any) {
     const userId = req.user.id;
     return this.service.updateQuantity(id, userId, body.quantity);
   }
 
   @Put('select')
-  async select(@Body() body: { ids: number[]; selected: boolean }, @Req() req: any) {
+  async select(@Body() body: CartSelectDto, @Req() req: any) {
     const userId = req.user.id;
     return this.service.updateSelected(body.ids, userId, body.selected);
   }

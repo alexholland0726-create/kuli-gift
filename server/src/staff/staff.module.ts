@@ -8,9 +8,11 @@ import { Product } from '../product/entities/product.entity';
 import { StaffService } from './staff.service';
 import { AccessGuard } from './access.guard';
 import { StaffController, InquiryController } from './staff.controller';
+import { Order } from '../order/entities/order.entity';
+import { OrderAudit } from '../order/entities/order-audit.entity';
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([StaffAccount, ProductInquiry, Product]), JwtModule.register({})],
+  imports: [TypeOrmModule.forFeature([StaffAccount, ProductInquiry, Product, Order, OrderAudit]), JwtModule.register({})],
   providers: [StaffService, { provide: APP_GUARD, useClass: AccessGuard }],
   controllers: [StaffController, InquiryController],
 })

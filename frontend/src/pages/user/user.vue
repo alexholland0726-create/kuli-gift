@@ -5,8 +5,10 @@ import { api } from '@/api/index';
 const userInfo = ref<any>(null);
 const loginLoading = ref(false);
 const notice = ref('');
+const commerceEnabled = ref(false);
 let refreshSequence = 0;
 onShow(async () => {
+  api.site.capabilities().then(value => { commerceEnabled.value = value?.commerceEnabled === true; }).catch(() => undefined);
   const sequence = ++refreshSequence;
   if (!uni.getStorageSync('token')) { userInfo.value = null; uni.removeStorageSync('userInfo'); return; }
   userInfo.value = uni.getStorageSync('userInfo') || null;
@@ -49,6 +51,7 @@ function logout() {
 }
 function browse() { uni.switchTab({ url: '/pages/library/library' }); }
 function inquire() { uni.navigateTo({ url: '/pages/product/list' }); }
+function openPage(path: string) { if (!userInfo.value) { notice.value = '请先登录'; return; } uni.navigateTo({ url: path }); }
 </script>
 <template>
   <view class="page">
@@ -68,6 +71,9 @@ function inquire() { uni.navigateTo({ url: '/pages/product/list' }); }
     <view class="panel">
       <view class="service" @tap="browse"><text>浏览礼品</text><text>›</text></view>
       <view class="service" @tap="inquire"><text>选择礼品询价</text><text>›</text></view>
+      <view v-if="commerceEnabled" class="service" @tap="openPage('/pages/cart/cart')"><text>购物车</text><text>›</text></view>
+      <view v-if="commerceEnabled" class="service" @tap="openPage('/pages/order/list')"><text>我的订单</text><text>›</text></view>
+      <view v-if="commerceEnabled" class="service" @tap="openPage('/pages/address/list')"><text>收货地址</text><text>›</text></view>
     </view>
     <view class="note">提交采购数量、预算和联系方式，我们会为您提供选品与报价。</view>
   </view>

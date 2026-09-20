@@ -1,10 +1,11 @@
 import { CanActivate, ExecutionContext, ForbiddenException, HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { StaffService } from './staff.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AccessGuard implements CanActivate {
   private windows = new Map<string, { count: number; expires: number }>();
-  constructor(private staff: StaffService) {}
+  constructor(private staff: StaffService, private config: ConfigService) {}
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();
     const path = (req.path as string).replace(/\/+$/, '').toLowerCase();
@@ -34,7 +35,9 @@ export class AccessGuard implements CanActivate {
       if ((path.startsWith('/api/admin/staff') || method === 'DELETE') && req.staff.role !== 'owner') throw new ForbiddenException('需要管理员权限');
       return true;
     }
-    // The first release is an inquiry catalog. Legacy commerce endpoints stay unavailable.
+    if (this.config.get('COMMERCE_ENABLED') === 'true'
+      && /^\/api\/(pay|orders?|cart|addresses)(\/|$)/.test(path)) return true;
+    // Commerce routes stay closed until merchant configuration and acceptance tests pass.
     if (/^\/api\/(pay|orders?|cart|coupons?|groupons?|address|addresses|share|user|users|auth)(\/|$)/.test(path)) {
       throw new ForbiddenException('当前版本仅支持产品展示和询价');
     }

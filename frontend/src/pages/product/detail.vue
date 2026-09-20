@@ -49,11 +49,13 @@ const selectedSpecs = ref<Record<string, string>>({});
 const showSpecPanel = ref(false);
 const loading = ref(false);
 const actionType = ref<'cart' | 'buy'>('cart');
+const commerceEnabled = ref(false);
 
 const productPlaceholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="750" height="750" viewBox="0 0 750 750"><rect fill="%23f5f5f5" width="750" height="750"/><text x="375" y="385" text-anchor="middle" fill="%23aaa" font-size="28">暂无图片</text></svg>';
 
 onLoad((opt: any) => {
   enableShareMenu();
+  api.site.capabilities().then(value => { commerceEnabled.value = value?.commerceEnabled === true; }).catch(() => undefined);
   if (opt.id) {
     id.value = Number(opt.id);
     loadProduct();
@@ -116,7 +118,7 @@ const detailRows = computed(() => [
   ...(product.value?.parameters?.length ? product.value.parameters : []),
   { label: '品牌/系列', value: brandName.value },
   { label: '商品品类', value: categoryName.value },
-  { label: '采购方式', value: '企业询价，线下确认报价' },
+  { label: '采购方式', value: commerceEnabled.value && !isInquiryProduct.value ? '在线下单并使用微信支付' : '企业询价，线下确认报价' },
   { label: '库存状态', value: `${product.value?.stock || 0} 件` },
 ].filter((row, index, rows) => rows.findIndex((item) => item.label === row.label) === index));
 const sceneTags = computed(() => {
@@ -155,7 +157,19 @@ function closeSpecPanel() {
 async function addToCart(thenGoCart = false) {
   if (!product.value) return;
   showSpecPanel.value = false;
-  uni.navigateTo({ url: `/pages/inquiry/inquiry?id=${product.value.id}&quantity=${quantity.value}` });
+  if (!commerceEnabled.value || isInquiryProduct.value) {
+    uni.navigateTo({ url: `/pages/inquiry/inquiry?id=${product.value.id}&quantity=${quantity.value}` });
+    return;
+  }
+  loading.value = true;
+  try {
+    await api.cart.add({ productId: product.value.id, quantity: quantity.value, spec: specText.value });
+    if (thenGoCart) uni.navigateTo({ url: '/pages/cart/cart' });
+    else uni.showToast({ title: '已加入购物车', icon: 'success' });
+  } catch (error: any) {
+    if (error?.statusCode === 401) uni.switchTab({ url: '/pages/user/user' });
+    else uni.showToast({ title: error?.data?.message || '加入失败', icon: 'none' });
+  } finally { loading.value = false; }
 }
 
 function handleCart() {
@@ -342,8 +356,8 @@ onShareTimeline(() => {
       <view class="action-item">
         <text>企业采购</text>
       </view>
-      <view class="cart-btn" @tap="handleCart">咨询详情</view>
-      <view class="buy-btn" @tap="handleBuy">立即询价</view>
+      <view class="cart-btn" @tap="handleCart">{{ commerceEnabled && !isInquiryProduct ? '加入购物车' : '咨询详情' }}</view>
+      <view class="buy-btn" @tap="handleBuy">{{ commerceEnabled && !isInquiryProduct ? '立即购买' : '立即询价' }}</view>
     </view>
 
     <view class="spec-overlay" v-if="showSpecPanel" @tap="closeSpecPanel">
@@ -380,7 +394,7 @@ onShareTimeline(() => {
         </view>
 
         <view class="panel-confirm" :class="{ disabled: loading }" @tap="confirmSpec">
-          提交询价
+          {{ commerceEnabled && !isInquiryProduct ? (actionType === 'buy' ? '立即购买' : '加入购物车') : '提交询价' }}
         </view>
       </view>
     </view>

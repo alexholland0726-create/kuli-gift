@@ -2,13 +2,16 @@ import { Body, Controller, Get, Post, Put, Param, ParseIntPipe, Req, Query, BadR
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StaffService } from './staff.service';
-import { ChangePasswordDto, CreateStaffDto, InquiryDto, InquiryStatusDto, LoginDto, UpdateStaffDto } from './staff.dto';
+import { ChangePasswordDto, CreateStaffDto, InquiryDto, InquiryStatusDto, LoginDto, ShipOrderDto, UpdateStaffDto } from './staff.dto';
 import { ProductInquiry } from './inquiry.entity';
 import { Product } from '../product/entities/product.entity';
+import { Order, OrderStatus } from '../order/entities/order.entity';
+import { OrderAudit } from '../order/entities/order-audit.entity';
+import { DataSource } from 'typeorm';
 
 @Controller('api/admin')
 export class StaffController {
-  constructor(private staff: StaffService, @InjectRepository(Product) private products: Repository<Product>, @InjectRepository(ProductInquiry) private inquiries: Repository<ProductInquiry>) {}
+  constructor(private staff: StaffService, @InjectRepository(Product) private products: Repository<Product>, @InjectRepository(ProductInquiry) private inquiries: Repository<ProductInquiry>, @InjectRepository(Order) private orders: Repository<Order>, private dataSource: DataSource) {}
   @Post('login') login(@Body() data: LoginDto) { return this.staff.login(data.username, data.password); }
   @Get('me') me(@Req() req) { return req.staff; }
   @Put('password') password(@Req() req, @Body() data: ChangePasswordDto) { return this.staff.changePassword(req.staff.id, data.currentPassword, data.password); }
@@ -28,6 +31,24 @@ export class StaffController {
   @Put('inquiries/:id') async status(@Param('id', ParseIntPipe) id: number, @Body() data: InquiryStatusDto) {
     await this.inquiries.update(id, { status: data.status });
     return { ok: true };
+  }
+  @Get('orders') async orderList(@Query('page') page = '1') {
+    const current = Math.max(1, Math.min(100000, Number(page) || 1));
+    const [items, total] = await this.orders.findAndCount({ order: { createdAt: 'DESC' }, take: 50, skip: (Math.floor(current) - 1) * 50 });
+    return { items, total };
+  }
+  @Put('orders/:id/ship') async ship(@Param('id', ParseIntPipe) id: number, @Body() data: ShipOrderDto, @Req() req) {
+    return this.dataSource.transaction(async manager => {
+      const order = await manager.findOne(Order, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!order) throw new BadRequestException('订单不存在');
+      if (order.status !== OrderStatus.PAID) throw new BadRequestException('只有已付款订单可以发货');
+      const before = order.status;
+      order.status = OrderStatus.SHIPPED; order.shippedAt = new Date();
+      order.trackingCompany = data.trackingCompany.trim(); order.trackingNo = data.trackingNo.trim();
+      await manager.save(order);
+      await manager.save(OrderAudit, manager.create(OrderAudit, { orderId: order.id, staffId: req.staff.id, action: 'ship', fromStatus: before, toStatus: order.status, detail: JSON.stringify({ trackingCompany: order.trackingCompany, trackingNo: order.trackingNo }) }));
+      return order;
+    });
   }
 }
 @Controller('api/inquiries')

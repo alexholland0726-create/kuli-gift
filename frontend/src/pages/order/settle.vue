@@ -69,35 +69,32 @@ async function submitOrder() {
 
   try {
     const order = await api.orders.create({
-      items: items.value.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        coverImage: item.coverImage,
-        price: item.price,
-        quantity: item.quantity,
-        spec: item.spec || '',
-      })),
-      totalAmount: totalAmount.value,
-      payAmount: totalAmount.value,
-      consignee: selectedAddress.value.name,
-      phone: selectedAddress.value.phone,
-      address: `${selectedAddress.value.province}${selectedAddress.value.city}${selectedAddress.value.district}${selectedAddress.value.detail}`,
+      cartItemIds: items.value.map((item) => item.cartItemId),
+      addressId: selectedAddress.value.id,
       remark: remark.value,
     }) as any;
 
     const payParams = await api.pay.create(order.id);
     await requestPayment(payParams);
-
-    for (const item of items.value) {
-      try { await api.cart.remove(item.cartItemId); } catch (_) {}
-    }
-    uni.showToast({ title: '支付成功', icon: 'success' });
+    const status = await confirmPayment(order.orderNo);
+    uni.showToast({ title: status ? '支付成功' : '支付结果确认中', icon: status ? 'success' : 'none' });
     setTimeout(() => uni.navigateTo({ url: '/pages/order/list' }), 1200);
   } catch (err: any) {
     uni.showToast({ title: err?.data?.message || '支付未完成', icon: 'none' });
   } finally {
     submitting.value = false;
   }
+}
+
+async function confirmPayment(orderNo: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const result = await api.pay.status(orderNo);
+      if (result?.tradeState === 'SUCCESS') return true;
+    } catch (_) {}
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  return false;
 }
 
 function requestPayment(params: any) {

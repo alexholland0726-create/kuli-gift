@@ -1,6 +1,6 @@
 const $ = selector => document.querySelector(selector);
 let token = sessionStorage.getItem('kuli_staff_token') || '';
-let me = null, categories = [], productPage = 1;
+let me = null, categories = [], productPage = 1, orderPage = 1;
 async function api(path, options = {}) {
   const headers = { ...(options.headers || {}), ...(token ? { Authorization: 'Bearer ' + token } : {}) };
   if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
@@ -24,7 +24,7 @@ async function boot() {
   await showView('products');
 }
 function logout() {
-  token = ''; me = null; categories = []; productPage = 1;
+  token = ''; me = null; categories = []; productPage = 1; orderPage = 1;
   sessionStorage.removeItem('kuli_staff_token');
   $('#product-dialog').close(); $('#app').hidden = true; $('#login').hidden = false;
   $('#login-form').elements.password.value = '';
@@ -44,6 +44,8 @@ async function showView(view) {
   $('#new-product').hidden = view !== 'products';
   if (view === 'products') await loadProducts();
   if (view === 'categories') await loadCategories();
+  if (view === 'site') await loadSite();
+  if (view === 'orders') await loadOrders();
   if (view === 'inquiries') await loadInquiries();
   if (view === 'staff') await loadStaff();
 }
@@ -132,6 +134,68 @@ $('#category-form').onsubmit = async event => {
   } catch (error) { $('#category-error').textContent = error.message; }
   finally { save.disabled = false; }
 };
+function nonEmptyLines(value) { return String(value || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean); }
+async function loadSite() {
+  const result = await api('/api/admin/site/home'), value = result.draft;
+  const form = $('#site-form');
+  form.elements.shareTitle.value = value.shareTitle;
+  form.elements.notice.value = value.notice;
+  form.elements.heroImage.value = value.heroImage;
+  form.elements.quickEntries.value = value.quickEntries.map(x => `${x.name}|${x.categoryId}|${x.image}`).join('\n');
+  form.elements.scenes.value = value.scenes.map(x => `${x.title}|${x.desc}|${x.categoryId}|${x.theme || 'festival'}`).join('\n');
+  $('#site-status').textContent = `当前发布版本 ${result.version || 0}${result.updatedAt ? ' · 最近保存 ' + new Date(result.updatedAt).toLocaleString() : ''}`;
+}
+function sitePayload(form) {
+  const quickEntries = nonEmptyLines(form.elements.quickEntries.value).map((line, index) => {
+    const [name, category, image, ...extra] = line.split('|').map(x => x.trim());
+    const categoryId = Number(category);
+    if (!name || !image || extra.length || !Number.isInteger(categoryId) || categoryId < 1) throw new Error(`快捷入口第 ${index + 1} 行格式不正确`);
+    return { name, categoryId, image };
+  });
+  const scenes = nonEmptyLines(form.elements.scenes.value).map((line, index) => {
+    const [title, desc, category, theme, ...extra] = line.split('|').map(x => x.trim());
+    const categoryId = Number(category);
+    if (!title || !desc || !theme || extra.length || !Number.isInteger(categoryId) || categoryId < 1) throw new Error(`场景卡片第 ${index + 1} 行格式不正确`);
+    return { title, desc, categoryId, theme };
+  });
+  return { shareTitle: form.elements.shareTitle.value.trim(), notice: form.elements.notice.value.trim(), heroImage: form.elements.heroImage.value.trim(), quickEntries, scenes };
+}
+$('#hero-file').onchange = async event => {
+  const file = event.target.files[0]; if (!file) return;
+  $('#hero-upload-status').textContent = '上传中…';
+  try {
+    const data = new FormData(); data.append('file', file);
+    const result = await api('/api/upload', { method: 'POST', body: data });
+    $('#site-form').elements.heroImage.value = result.url; $('#hero-upload-status').textContent = '上传完成，保存并发布后生效';
+  } catch (error) { $('#hero-upload-status').textContent = error.message; }
+};
+$('#site-form').onsubmit = async event => {
+  event.preventDefault(); $('#site-error').textContent = '';
+  try { await api('/api/admin/site/home/draft', { method: 'PUT', body: JSON.stringify(sitePayload(event.target)) }); $('#site-status').textContent = '草稿已保存，尚未发布'; }
+  catch (error) { $('#site-error').textContent = error.message; }
+};
+$('#publish-site').onclick = () => run(async () => {
+  const form = $('#site-form');
+  await api('/api/admin/site/home/draft', { method: 'PUT', body: JSON.stringify(sitePayload(form)) });
+  const result = await api('/api/admin/site/home/publish', { method: 'POST' });
+  $('#site-status').textContent = `已发布版本 ${result.version}，小程序下次打开首页即生效`;
+});
+$('#restore-site').onclick = () => run(async () => { await api('/api/admin/site/home/restore', { method: 'POST' }); await loadSite(); });
+const orderStatusText = value => ({ pending: '待付款', paid: '已付款', shipped: '已发货', delivered: '已送达', completed: '已完成', cancelled: '已取消', refunding: '退款中', refunded: '已退款' }[value] || value);
+async function loadOrders() {
+  const result = await api('/api/admin/orders?page=' + orderPage);
+  $('#order-list').innerHTML = result.items.length ? result.items.map(order => `<article class="card"><div class="grow"><b>${esc(order.orderNo)} · ${orderStatusText(order.status)}</b><div>${order.items.map(item => `${esc(item.name)} × ${Number(item.quantity)}`).join('；')}</div><div class="muted">收货：${esc(order.consignee || '')} ${esc(order.phone || '')} · ${esc(order.address || '')}<br>金额 ￥${Number(order.payAmount).toFixed(2)} · ${new Date(order.createdAt).toLocaleString()}${order.trackingNo ? `<br>物流：${esc(order.trackingCompany)} ${esc(order.trackingNo)}` : ''}</div></div>${order.status === 'paid' ? `<button class="ship-order" data-id="${order.id}">录入发货</button>` : ''}</article>`).join('') : '<div class="card">暂无订单。</div>';
+  document.querySelectorAll('.ship-order').forEach(button => button.onclick = () => run(async () => {
+    const trackingCompany = prompt('物流公司名称'); if (!trackingCompany) return;
+    const trackingNo = prompt('物流单号'); if (!trackingNo) return;
+    await api('/api/admin/orders/' + button.dataset.id + '/ship', { method: 'PUT', body: JSON.stringify({ trackingCompany, trackingNo }) });
+    await loadOrders();
+  }));
+  const pages = Math.max(1, Math.ceil(result.total / 50));
+  $('#order-pagination').innerHTML = `<button id="prev-orders" ${orderPage <= 1 ? 'disabled' : ''}>上一页</button><span>第 ${orderPage} / ${pages} 页 · 共 ${result.total} 个订单</span><button id="next-orders" ${orderPage >= pages ? 'disabled' : ''}>下一页</button>`;
+  $('#prev-orders').onclick = () => run(async () => { orderPage--; await loadOrders(); });
+  $('#next-orders').onclick = () => run(async () => { orderPage++; await loadOrders(); });
+}
 async function loadInquiries() {
   const result = await api('/api/admin/inquiries');
   $('#inquiry-list').innerHTML = result.items.length ? result.items.map(x => `<article class="card"><div class="grow"><b>${esc(x.name)} · ${esc(x.contact)}</b><div>${esc(x.message)}</div><div class="muted">${x.products.map(p => esc(p.name) + ' × ' + p.quantity).join('；')} · ${new Date(x.createdAt).toLocaleString()}</div></div><select class="lead-status" data-id="${x.id}"><option value="new">新询价</option><option value="contacted">已联系</option><option value="closed">已完成</option></select></article>`).join('') : '<div class="card">暂无客户询价。</div>';

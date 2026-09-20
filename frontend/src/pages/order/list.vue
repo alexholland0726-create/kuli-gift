@@ -53,7 +53,7 @@ function cancelOrder(order: any) {
       if (!res.confirm) return;
       cancellingId.value = order.id;
       try {
-        const updated = await api.orders.cancel(order.id);
+        const updated = await api.orders.cancel(order.orderNo);
         const index = orders.value.findIndex((item) => item.id === order.id);
         if (index >= 0) orders.value[index] = updated;
         uni.showToast({ title: '已取消', icon: 'success' });
