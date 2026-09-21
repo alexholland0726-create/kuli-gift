@@ -18,9 +18,26 @@ export class StaffController {
   @Get('staff') list() { return this.staff.list(); }
   @Post('staff') create(@Body() data: CreateStaffDto) { return this.staff.create(data); }
   @Put('staff/:id') update(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateStaffDto) { return this.staff.update(id, data); }
-  @Get('products') async catalog(@Query('page') page = '1') {
+  @Get('products') async catalog(
+    @Query('page') page = '1',
+    @Query('keyword') keyword = '',
+    @Query('status') status = 'all',
+    @Query('categoryId') categoryId = '',
+  ) {
     const current = Math.max(1, Math.min(100000, Number(page) || 1));
-    const [items, total] = await this.products.findAndCount({ order: { updatedAt: 'DESC' }, take: 50, skip: (Math.floor(current) - 1) * 50 });
+    const query = this.products.createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .orderBy('product.updatedAt', 'DESC')
+      .take(50)
+      .skip((Math.floor(current) - 1) * 50);
+    const normalizedKeyword = String(keyword || '').trim();
+    if (normalizedKeyword) query.andWhere('product.name LIKE :keyword', { keyword: `%${normalizedKeyword}%` });
+    if (status === 'active') query.andWhere('product.isActive = :active', { active: true });
+    if (status === 'inactive') query.andWhere('product.isActive = :active', { active: false });
+    if (status === 'recommended') query.andWhere('product.isRecommended = :recommended', { recommended: true });
+    const normalizedCategoryId = Number(categoryId);
+    if (Number.isInteger(normalizedCategoryId) && normalizedCategoryId > 0) query.andWhere('product.categoryId = :categoryId', { categoryId: normalizedCategoryId });
+    const [items, total] = await query.getManyAndCount();
     return { items, total };
   }
   @Get('inquiries') async leads(@Query('page') page = '1') {

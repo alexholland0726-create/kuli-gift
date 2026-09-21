@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 let token = sessionStorage.getItem('kuli_staff_token') || '';
 let me = null, categories = [], productPage = 1, orderPage = 1;
+const viewTitles = { dashboard: '工作台', products: '产品管理', categories: '分类管理', site: '首页装修', orders: '订单发货', inquiries: '客户询价', staff: '同事账号', account: '账号安全' };
 async function api(path, options = {}) {
   const headers = { ...(options.headers || {}), ...(token ? { Authorization: 'Bearer ' + token } : {}) };
   if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
@@ -20,8 +21,11 @@ async function boot() {
   try { me = await api('/api/admin/me'); } catch (error) { logout(); throw error; }
   $('#login').hidden = true; $('#app').hidden = false;
   $('#welcome').textContent = `${me.name} · ${me.role === 'owner' ? '管理员' : '产品编辑'}`;
+  $('#side-name').textContent = me.name;
+  $('#side-role').textContent = me.role === 'owner' ? '主管理员' : '运营编辑';
+  $('#side-avatar').textContent = (me.name || '管').slice(0, 1);
   document.querySelectorAll('.owner-only').forEach(x => x.hidden = me.role !== 'owner');
-  await showView('products');
+  await showView('dashboard');
 }
 function logout() {
   token = ''; me = null; categories = []; productPage = 1; orderPage = 1;
@@ -40,8 +44,9 @@ $('#logout').onclick = logout;
 async function showView(view) {
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === view));
   document.querySelectorAll('.view').forEach(x => x.hidden = x.id !== view);
-  $('#title').textContent = document.querySelector(`[data-view="${view}"]`).textContent;
+  $('#title').textContent = viewTitles[view] || '管理后台';
   $('#new-product').hidden = view !== 'products';
+  if (view === 'dashboard') await loadDashboard();
   if (view === 'products') await loadProducts();
   if (view === 'categories') await loadCategories();
   if (view === 'site') await loadSite();
@@ -50,8 +55,32 @@ async function showView(view) {
   if (view === 'staff') await loadStaff();
 }
 document.querySelectorAll('.nav').forEach(button => button.onclick = () => run(() => showView(button.dataset.view)));
+document.querySelectorAll('[data-go]').forEach(button => button.onclick = () => run(() => showView(button.dataset.go)));
+async function loadDashboard() {
+  const requests = [api('/api/admin/products?page=1'), api('/api/admin/products?page=1&status=active'), api('/api/admin/categories'), api('/api/admin/inquiries?page=1'), api('/api/admin/orders?page=1')];
+  if (me.role === 'owner') requests.push(api('/api/admin/staff'));
+  const [allProducts, activeProducts, categoryRows, inquiryRows, orderRows, staffRows = []] = await Promise.all(requests);
+  const newInquiries = inquiryRows.items.filter(item => item.status === 'new').length;
+  const paidOrders = orderRows.items.filter(item => item.status === 'paid').length;
+  $('#dashboard-stats').innerHTML = [
+    ['产品总数', allProducts.total, `已上架 ${activeProducts.total}`, 'green'],
+    ['产品分类', categoryRows.length, `启用 ${categoryRows.filter(item => item.isActive).length}`, 'gold'],
+    ['待跟进询价', newInquiries, `全部 ${inquiryRows.total}`, 'blue'],
+    ['待发货订单', paidOrders, `全部 ${orderRows.total}`, 'purple'],
+    ...(me.role === 'owner' ? [['运营账号', staffRows.filter(item => item.active).length, `全部 ${staffRows.length}`, 'slate']] : []),
+  ].map(([label, value, note, tone]) => `<article class="stat-card ${tone}"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join('');
+}
 async function loadProducts() {
-  const result = await api('/api/admin/products?page=' + productPage);
+  if (!categories.length) categories = await api('/api/admin/categories');
+  const categorySelect = $('#product-category');
+  const selectedCategory = categorySelect.value;
+  categorySelect.innerHTML = '<option value="">全部分类</option>' + categories.map(c => `<option value="${c.id}">${esc(c.name)}${c.isActive ? '' : '（停用）'}</option>`).join('');
+  categorySelect.value = selectedCategory;
+  const params = new URLSearchParams({ page: String(productPage), status: $('#product-status').value || 'all' });
+  const keyword = $('#product-keyword').value.trim();
+  if (keyword) params.set('keyword', keyword);
+  if (categorySelect.value) params.set('categoryId', categorySelect.value);
+  const result = await api('/api/admin/products?' + params.toString());
   $('#product-list').innerHTML = result.items.length ? result.items.map(p => `<article class="card"><img class="thumb" src="${esc(p.coverImage || '')}" alt=""><div class="grow"><b>${esc(p.name)}</b><div class="muted">${Number(p.price) > 0 ? '￥' + Number(p.price).toFixed(2) : '询价'} · ${esc(p.category?.name || '未分类')}</div></div><span class="badge ${p.isActive ? '' : 'off'}">${p.isActive ? '已上架' : '已下架 / 草稿'}</span><button class="secondary edit-product" data-id="${p.id}">编辑</button>${me.role === 'owner' && p.isActive ? `<button class="danger off-product" data-id="${p.id}">下架</button>` : ''}</article>`).join('') : '<div class="card">暂无产品，点击“上传产品”开始。</div>';
   document.querySelectorAll('.edit-product').forEach(b => b.onclick = () => run(() => editProduct(result.items.find(p => p.id == b.dataset.id))));
   document.querySelectorAll('.off-product').forEach(b => b.onclick = () => run(async () => {
@@ -63,6 +92,10 @@ async function loadProducts() {
   $('#prev-products').onclick = () => run(async () => { productPage--; await loadProducts(); });
   $('#next-products').onclick = () => run(async () => { productPage++; await loadProducts(); });
 }
+$('#search-products').onclick = () => run(async () => { productPage = 1; await loadProducts(); });
+$('#product-keyword').onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); $('#search-products').click(); } };
+$('#product-status').onchange = $('#product-category').onchange = () => run(async () => { productPage = 1; await loadProducts(); });
+$('#reset-product-filter').onclick = () => run(async () => { $('#product-keyword').value = ''; $('#product-status').value = 'all'; $('#product-category').value = ''; productPage = 1; await loadProducts(); });
 async function editProduct(product = { price: 0, stock: 0, isActive: false, isRecommended: false }) {
   categories = await api('/api/admin/categories');
   const form = $('#product-form'); form.reset();

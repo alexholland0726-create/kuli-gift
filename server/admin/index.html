@@ -10,11 +10,31 @@
     <form id="login-form"><label>账号<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" minlength="12" required></label><button>登录</button><div id="login-error" class="error"></div></form>
   </main>
   <div id="app" hidden>
-    <aside><div class="brand">酷礼工坊</div><button data-view="products" class="nav active">产品管理</button><button data-view="categories" class="nav">分类管理</button><button data-view="site" class="nav">首页内容</button><button data-view="orders" class="nav">订单发货</button><button data-view="inquiries" class="nav">客户询价</button><button data-view="staff" class="nav owner-only">同事账号</button><button data-view="account" class="nav">修改密码</button><button id="logout" class="quiet">退出登录</button></aside>
+    <aside>
+      <div class="brand-block"><div class="brand-mark">礼</div><div><div class="brand">酷礼工坊</div><small>运营管理中心</small></div></div>
+      <div class="nav-label">经营概览</div>
+      <button data-view="dashboard" class="nav active"><span>▦</span>工作台</button>
+      <div class="nav-label">商品与内容</div>
+      <button data-view="products" class="nav"><span>□</span>产品管理</button><button data-view="categories" class="nav"><span>⌘</span>分类管理</button><button data-view="site" class="nav"><span>◇</span>首页装修</button>
+      <div class="nav-label">客户与履约</div>
+      <button data-view="orders" class="nav"><span>▤</span>订单发货</button><button data-view="inquiries" class="nav"><span>◎</span>客户询价</button>
+      <div class="nav-label">系统管理</div>
+      <button data-view="staff" class="nav owner-only"><span>♙</span>同事账号</button><button data-view="account" class="nav"><span>⚙</span>账号安全</button>
+      <div class="side-user"><div class="avatar" id="side-avatar">管</div><div><b id="side-name">管理员</b><small id="side-role">Owner</small></div></div>
+      <button id="logout" class="quiet">退出登录</button>
+    </aside>
     <section class="workspace">
-      <header><div><h1 id="title">产品管理</h1><p id="welcome"></p></div><button id="new-product">＋ 上传产品</button></header>
+      <header><div><h1 id="title">工作台</h1><p id="welcome"></p></div><div class="header-actions"><a class="preview-link" href="https://api.da-fire.com/health" target="_blank">服务状态</a><button id="new-product" hidden>＋ 新建产品</button></div></header>
       <div id="page-error" class="error" role="alert"></div>
-      <div id="products" class="view"><div id="product-list" class="cards"></div><div id="product-pagination" class="actions"></div></div>
+      <div id="dashboard" class="view">
+        <div class="welcome-panel"><div><span class="eyebrow">KULI GIFT OPERATIONS</span><h2>今天也要把好礼送到客户手中</h2><p>商品、首页、询价和订单集中管理。线上交易开通前，系统继续保持展示与询价模式。</p></div><button class="dashboard-action" data-go="products">管理产品</button></div>
+        <div id="dashboard-stats" class="stats-grid"></div>
+        <div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><h3>快捷操作</h3><p>常用运营入口</p></div></div><div class="quick-actions"><button data-go="products">＋ 新建或编辑产品</button><button data-go="site">装修小程序首页</button><button data-go="inquiries">处理客户询价</button><button data-go="orders">查看订单发货</button></div></section><section class="panel"><div class="panel-head"><div><h3>上线状态</h3><p>当前经营能力</p></div></div><div class="launch-list"><div><span class="status-dot ok"></span><b>展示与询价</b><em>已上线</em></div><div><span class="status-dot wait"></span><b>在线交易</b><em>待支付验收</em></div><div><span class="status-dot ok"></span><b>数据备份</b><em>每日执行</em></div></div></section></div>
+      </div>
+      <div id="products" class="view" hidden>
+        <div class="toolbar"><div class="search-control"><input id="product-keyword" placeholder="搜索产品名称"><button id="search-products">搜索</button></div><select id="product-status"><option value="all">全部状态</option><option value="active">已上架</option><option value="inactive">草稿 / 已下架</option><option value="recommended">首页推荐</option></select><select id="product-category"><option value="">全部分类</option></select><button id="reset-product-filter" class="secondary">重置</button></div>
+        <div id="product-list" class="cards product-cards"></div><div id="product-pagination" class="actions pagination"></div>
+      </div>
       <div id="categories" class="view" hidden>
         <form id="category-form" class="inline-form"><input type="hidden" name="id"><label>分类名称<input name="name" maxlength="100" required></label><label>排序（小的在前）<input name="sort" type="number" min="0" max="2147483647" value="0" required></label><label>状态<select name="isActive"><option value="true">启用</option><option value="false">停用</option></select></label><button>保存分类</button><button type="button" id="reset-category" class="secondary">新增 / 清空</button></form>
         <div id="category-error" class="error" role="alert"></div><div id="category-list" class="cards"></div>
@@ -30,8 +50,8 @@
           <div id="site-status" class="muted"></div><div id="site-error" class="error"></div>
         </form>
       </div>
-      <div id="orders" class="view" hidden><div id="order-list" class="cards"></div><div id="order-pagination" class="actions"></div></div>
-      <div id="inquiries" class="view" hidden><div id="inquiry-list" class="cards"></div></div>
+      <div id="orders" class="view" hidden><div class="section-intro"><div><h2>订单与发货</h2><p>查看付款状态，为已付款订单录入物流信息。</p></div></div><div id="order-list" class="cards"></div><div id="order-pagination" class="actions pagination"></div></div>
+      <div id="inquiries" class="view" hidden><div class="section-intro"><div><h2>客户询价</h2><p>跟进企业采购需求并更新处理状态。</p></div></div><div id="inquiry-list" class="cards"></div></div>
       <div id="staff" class="view" hidden><form id="staff-form" class="inline-form"><input name="name" placeholder="同事姓名" required><input name="username" placeholder="登录账号" required><input name="password" type="password" minlength="12" placeholder="初始密码（至少12位）" required><button>创建账号</button></form><div id="staff-list" class="cards"></div></div>
       <div id="account" class="view" hidden><form id="password-form" class="login-card"><h2>修改我的密码</h2><label>当前密码<input name="currentPassword" type="password" minlength="12" required></label><label>新密码<input name="password" type="password" minlength="12" required></label><button>保存新密码</button><div id="password-error" class="error"></div></form></div>
     </section>
