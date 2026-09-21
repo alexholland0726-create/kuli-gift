@@ -57,9 +57,9 @@ async function showView(view) {
 document.querySelectorAll('.nav').forEach(button => button.onclick = () => run(() => showView(button.dataset.view)));
 document.querySelectorAll('[data-go]').forEach(button => button.onclick = () => run(() => showView(button.dataset.go)));
 async function loadDashboard() {
-  const requests = [api('/api/admin/products?page=1'), api('/api/admin/products?page=1&status=active'), api('/api/admin/categories'), api('/api/admin/inquiries?page=1'), api('/api/admin/orders?page=1')];
+  const requests = [api('/api/admin/products?page=1'), api('/api/admin/products?page=1&status=active'), api('/api/admin/categories'), api('/api/admin/inquiries?page=1'), api('/api/admin/orders?page=1'), api('/api/admin/products?page=1&status=inactive'), api('/api/admin/products?page=1&status=recommended')];
   if (me.role === 'owner') requests.push(api('/api/admin/staff'));
-  const [allProducts, activeProducts, categoryRows, inquiryRows, orderRows, staffRows = []] = await Promise.all(requests);
+  const [allProducts, activeProducts, categoryRows, inquiryRows, orderRows, inactiveProducts, recommendedProducts, staffRows = []] = await Promise.all(requests);
   const newInquiries = inquiryRows.items.filter(item => item.status === 'new').length;
   const paidOrders = orderRows.items.filter(item => item.status === 'paid').length;
   $('#dashboard-stats').innerHTML = [
@@ -69,6 +69,23 @@ async function loadDashboard() {
     ['待发货订单', paidOrders, `全部 ${orderRows.total}`, 'purple'],
     ...(me.role === 'owner' ? [['运营账号', staffRows.filter(item => item.active).length, `全部 ${staffRows.length}`, 'slate']] : []),
   ].map(([label, value, note, tone]) => `<article class="stat-card ${tone}"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join('');
+  const tasks = [
+    { count: newInquiries, title: '条新询价等待联系', note: '及时响应能提高企业采购转化', view: 'inquiries', tone: 'urgent' },
+    { count: paidOrders, title: '笔已付款订单等待发货', note: '录入物流后客户可查看配送进度', view: 'orders', tone: 'order' },
+    { count: inactiveProducts.total, title: '个商品处于草稿或下架状态', note: '检查资料完整度后再决定是否上架', view: 'products', tone: 'catalog' },
+  ];
+  $('#dashboard-tasks').innerHTML = tasks.map(task => `<button class="task-item" data-go="${task.view}"><span class="task-icon ${task.tone}">${task.count}</span><span class="task-copy"><b>${task.title}</b><small>${task.note}</small></span><span class="task-arrow">→</span></button>`).join('');
+  const productTotal = Math.max(1, allProducts.total);
+  const activePercent = Math.round(activeProducts.total / productTotal * 100);
+  const inactivePercent = Math.round(inactiveProducts.total / productTotal * 100);
+  const recommendedPercent = Math.round(recommendedProducts.total / productTotal * 100);
+  $('#dashboard-product-mix').innerHTML = `<div class="mix-visual" style="--active:${activePercent * 3.6}deg"><div><strong>${activePercent}%</strong><small>已上架</small></div></div><div class="mix-legend"><div><span class="legend-dot active"></span><b>已上架</b><em>${activeProducts.total}</em></div><div><span class="legend-dot inactive"></span><b>草稿 / 下架</b><em>${inactiveProducts.total}</em></div><div><span class="legend-dot recommended"></span><b>首页推荐</b><em>${recommendedProducts.total}</em></div></div><div class="coverage"><div><span>上架覆盖率</span><b>${activePercent}%</b></div><i><span style="width:${activePercent}%"></span></i><small>另有 ${inactivePercent}% 待整理，${recommendedPercent}% 已进入首页推荐</small></div>`;
+  const activities = [
+    ...inquiryRows.items.slice(0, 4).map(item => ({ type: '询价', title: `${item.name || '客户'} 提交了采购需求`, detail: item.products?.map(product => product.name).filter(Boolean).slice(0, 2).join('、') || item.message || '待查看需求', date: item.createdAt, tone: 'inquiry' })),
+    ...orderRows.items.slice(0, 4).map(item => ({ type: '订单', title: `${item.orderNo} · ${orderStatusText(item.status)}`, detail: item.items?.map(product => product.name).filter(Boolean).slice(0, 2).join('、') || '订单商品', date: item.createdAt, tone: 'order' })),
+  ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
+  $('#dashboard-activity').innerHTML = activities.length ? activities.map(item => `<article class="activity-item"><span class="activity-type ${item.tone}">${item.type}</span><div><b>${esc(item.title)}</b><p>${esc(item.detail)}</p></div><time>${new Date(item.date).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time></article>`).join('') : '<div class="empty-state"><b>暂时没有业务动态</b><p>新的询价和订单会显示在这里。</p></div>';
+  document.querySelectorAll('#dashboard [data-go]').forEach(button => button.onclick = () => run(() => showView(button.dataset.go)));
 }
 async function loadProducts() {
   if (!categories.length) categories = await api('/api/admin/categories');

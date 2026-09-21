@@ -29,7 +29,17 @@
       <div id="dashboard" class="view">
         <div class="welcome-panel"><div><span class="eyebrow">KULI GIFT OPERATIONS</span><h2>今天也要把好礼送到客户手中</h2><p>商品、首页、询价和订单集中管理。线上交易开通前，系统继续保持展示与询价模式。</p></div><button class="dashboard-action" data-go="products">管理产品</button></div>
         <div id="dashboard-stats" class="stats-grid"></div>
-        <div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><h3>快捷操作</h3><p>常用运营入口</p></div></div><div class="quick-actions"><button data-go="products">＋ 新建或编辑产品</button><button data-go="site">装修小程序首页</button><button data-go="inquiries">处理客户询价</button><button data-go="orders">查看订单发货</button></div></section><section class="panel"><div class="panel-head"><div><h3>上线状态</h3><p>当前经营能力</p></div></div><div class="launch-list"><div><span class="status-dot ok"></span><b>展示与询价</b><em>已上线</em></div><div><span class="status-dot wait"></span><b>在线交易</b><em>待支付验收</em></div><div><span class="status-dot ok"></span><b>数据备份</b><em>每日执行</em></div></div></section></div>
+        <div class="dashboard-layout">
+          <div class="dashboard-main">
+            <section class="panel task-panel"><div class="panel-head"><div><span class="panel-kicker">TODAY</span><h3>经营待办</h3><p>优先处理会影响客户体验的事项</p></div><button class="text-button" data-go="inquiries">查看全部 →</button></div><div id="dashboard-tasks" class="task-list"></div></section>
+            <section class="panel"><div class="panel-head"><div><span class="panel-kicker">ACTIVITY</span><h3>最近业务动态</h3><p>询价与订单的最新进展</p></div></div><div id="dashboard-activity" class="activity-list"></div></section>
+          </div>
+          <div class="dashboard-side">
+            <section class="panel"><div class="panel-head"><div><span class="panel-kicker">CATALOG</span><h3>商品结构</h3><p>当前商品可见状态</p></div></div><div id="dashboard-product-mix" class="product-mix"></div></section>
+            <section class="panel"><div class="panel-head"><div><span class="panel-kicker">SHORTCUTS</span><h3>快捷操作</h3><p>常用运营入口</p></div></div><div class="quick-actions rich"><button data-go="products"><span>＋</span><b>维护商品</b><small>新增、编辑与上下架</small></button><button data-go="site"><span>◇</span><b>首页装修</b><small>更新焦点图与场景</small></button><button data-go="inquiries"><span>◎</span><b>客户询价</b><small>跟进采购需求</small></button><button data-go="orders"><span>▤</span><b>订单发货</b><small>处理支付与物流</small></button></div></section>
+            <section class="panel compact-panel"><div class="panel-head"><div><span class="panel-kicker">READINESS</span><h3>上线状态</h3></div></div><div class="launch-list"><div><span class="status-dot ok"></span><b>展示与询价</b><em>已上线</em></div><div><span class="status-dot wait"></span><b>在线交易</b><em>待支付验收</em></div><div><span class="status-dot ok"></span><b>数据备份</b><em>每日执行</em></div></div></section>
+          </div>
+        </div>
       </div>
       <div id="products" class="view" hidden>
         <div class="toolbar"><div class="search-control"><input id="product-keyword" placeholder="搜索产品名称"><button id="search-products">搜索</button></div><select id="product-status"><option value="all">全部状态</option><option value="active">已上架</option><option value="inactive">草稿 / 已下架</option><option value="recommended">首页推荐</option></select><select id="product-category"><option value="">全部分类</option></select><button id="reset-product-filter" class="secondary">重置</button></div>
