@@ -25,6 +25,7 @@ const categories = ref<Category[]>([]);
 const featuredProducts = ref<Product[]>([]);
 const announcementVisible = ref(true);
 const homeLoading = ref(true);
+const homeError = ref(false);
 
 const shareTitle = ref('酷礼工坊｜企业礼品一站式选品');
 const notice = ref('支持企业福利、客户答谢和活动礼赠，可按需求提交询价');
@@ -52,9 +53,10 @@ const scenes = ref([
   { title: '户外团建', desc: '运动户外与团队活动', categoryId: 9, theme: 'graduate' },
 ]);
 
-onMounted(async () => {
-  enableShareMenu();
-
+async function loadHome() {
+  homeLoading.value = true;
+  homeError.value = false;
+  let failed = false;
   try {
     const layout = await api.site.home();
     if (layout?.shareTitle) shareTitle.value = layout.shareTitle;
@@ -62,7 +64,7 @@ onMounted(async () => {
     if (layout?.heroImage) heroImg.value = layout.heroImage;
     if (Array.isArray(layout?.quickEntries) && layout.quickEntries.length) quickEntries.value = layout.quickEntries;
     if (Array.isArray(layout?.scenes) && layout.scenes.length) scenes.value = layout.scenes;
-  } catch (_) {}
+  } catch (_) { failed = true; }
 
   try {
     const catRes = await api.categories.list();
@@ -70,7 +72,7 @@ onMounted(async () => {
     if (realCategories.length) {
       categories.value = rootCategories(realCategories).slice(0, 10);
     }
-  } catch (_) {}
+  } catch (_) { failed = true; }
 
   try {
     const prodRes = await api.products.list({ recommended: true, limit: 18 });
@@ -78,8 +80,13 @@ onMounted(async () => {
     if (realProducts.length) {
       featuredProducts.value = realProducts;
     }
-  } catch (_) {}
-  finally { homeLoading.value = false; }
+  } catch (_) { failed = true; }
+  finally { homeError.value = failed; homeLoading.value = false; }
+}
+
+onMounted(() => {
+  enableShareMenu();
+  loadHome();
 });
 
 function enableShareMenu() {
@@ -152,6 +159,11 @@ function priceLabel(price: number | string) {
         <text class="notice-close" @tap.stop="closeAnnouncement">×</text>
       </view>
       <image class="hero-img" :src="heroImg" mode="aspectFill" />
+    </view>
+
+    <view class="home-alert" v-if="homeError">
+      <view><text class="alert-title">部分内容暂时没有更新</text><text class="alert-desc">网络恢复后可重新加载，现有分类仍可继续浏览。</text></view>
+      <text class="alert-retry" hover-class="pressable" @tap="loadHome">重新加载</text>
     </view>
 
     <view class="quick-panel">
@@ -582,6 +594,7 @@ function priceLabel(price: number | string) {
   font-size: 29rpx;
   font-weight: 700;
 }
+.home-alert{display:flex;align-items:center;gap:18rpx;margin:18rpx 28rpx;padding:20rpx 22rpx;background:#fff8e9;border:1rpx solid #eed9aa;border-radius:18rpx}.home-alert view{flex:1}.alert-title,.alert-desc{display:block}.alert-title{color:#805f29;font-size:25rpx;font-weight:700}.alert-desc{margin-top:6rpx;color:#987d51;font-size:21rpx}.alert-retry{padding:12rpx 18rpx;color:#fff;background:#8c713f;border-radius:999rpx;font-size:22rpx;white-space:nowrap}
 .skeleton-card { pointer-events: none; }
 .skeleton-image, .skeleton-line { background: linear-gradient(90deg,#eef1eb 25%,#f8faf6 50%,#eef1eb 75%); background-size: 200% 100%; animation: shimmer 1.25s infinite; }
 .skeleton-image { height: 292rpx; }

@@ -49,6 +49,7 @@ const BRAND_MATERIALS: Record<string, SourceLink[]> = {
 const categories = ref<Category[]>([]);
 const activeIndex = ref(0);
 const loading = ref(false);
+const categoriesError = ref(false);
 const brandMaterialMap = ref<Record<number, ProductMaterial>>({});
 
 const displayCategories = computed(() => categories.value.filter((item) => item.parentId == null));
@@ -107,13 +108,19 @@ function mergeMaterials(...groups: SourceLink[][]): SourceLink[] {
   });
 }
 
-onMounted(async () => {
+async function loadCategories() {
+  categoriesError.value = false;
   try {
     const res = await api.categories.list();
     const realCategories = Array.isArray(res) ? res : [];
     if (realCategories.length) categories.value = realCategories;
-  } catch (_) {}
-  loadCategoryProducts();
+    else categoriesError.value = true;
+  } catch (_) { categoriesError.value = true; }
+  await loadCategoryProducts();
+}
+
+onMounted(async () => {
+  await loadCategories();
 });
 
 function selectCategory(index: number) {
@@ -216,6 +223,8 @@ function downloadMaterial(source: SourceLink) {
     </view>
 
     <view class="content">
+      <view class="category-failed" v-if="categoriesError && !displayCategories.length"><text class="failed-title">分类暂时无法加载</text><text class="failed-desc">请检查网络后重新尝试</text><view class="failed-retry" hover-class="pressable" @tap="loadCategories">重新加载</view></view>
+      <template v-else>
       <scroll-view class="left-nav" scroll-y>
         <view
           class="nav-item"
@@ -266,6 +275,7 @@ function downloadMaterial(source: SourceLink) {
         </view>
 
       </scroll-view>
+      </template>
     </view>
   </view>
 </template>
@@ -303,6 +313,7 @@ function downloadMaterial(source: SourceLink) {
   display: flex;
   height: calc(100vh - 108rpx);
 }
+.category-failed{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60rpx;text-align:center}.failed-title{color:#2d392b;font-size:31rpx;font-weight:800}.failed-desc{margin-top:12rpx;color:#879184;font-size:24rpx}.failed-retry{margin-top:28rpx;padding:18rpx 42rpx;color:#fff;background:#5f914d;border-radius:999rpx;font-size:25rpx}
 
 .left-nav {
   width: 172rpx;

@@ -147,7 +147,7 @@ function selectSpec(name: string, value: string) {
 }
 
 function changeQuantity(delta: number) {
-  quantity.value = Math.max(1, Math.min(99, quantity.value + delta));
+  quantity.value = Math.max(1, Math.min(1000000, quantity.value + delta));
 }
 
 function openSpecPanel(type: 'cart' | 'buy') {
@@ -359,11 +359,8 @@ onShareTimeline(() => {
       <view class="action-item" hover-class="pressable" @tap="uni.switchTab({url:'/pages/index/index'})">
         <text>首页</text>
       </view>
-      <view class="action-item" hover-class="pressable" @tap="handleCart">
-        <text>采购咨询</text>
-      </view>
-      <view class="cart-btn" hover-class="pressable" @tap="handleCart">{{ commerceEnabled && !isInquiryProduct ? '加入购物车' : '咨询详情' }}</view>
-      <view class="buy-btn" hover-class="pressable" @tap="handleBuy">{{ commerceEnabled && !isInquiryProduct ? '立即购买' : '立即询价' }}</view>
+      <view v-if="commerceEnabled && !isInquiryProduct" class="cart-btn" hover-class="pressable" @tap="handleCart">加入购物车</view>
+      <view class="buy-btn" hover-class="pressable" @tap="handleBuy">{{ commerceEnabled && !isInquiryProduct ? '立即购买' : '提交采购询价' }}</view>
     </view>
 
     <view class="spec-overlay" v-if="showSpecPanel" @tap="closeSpecPanel">
@@ -372,7 +369,7 @@ onShareTimeline(() => {
           <image :src="product.coverImage || productPlaceholder" class="panel-img" mode="aspectFill" />
           <view class="panel-info">
             <text class="panel-price">{{ priceText }}</text>
-            <text class="panel-stock">库存 {{ product.stock || 0 }} 件</text>
+            <text class="panel-stock">{{ commerceEnabled && !isInquiryProduct ? `库存 ${product.stock || 0} 件` : '数量与交期以报价确认为准' }}</text>
           </view>
           <text class="panel-close" @tap="closeSpecPanel">×</text>
         </view>
